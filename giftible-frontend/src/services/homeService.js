@@ -1,17 +1,16 @@
 // /services/homeService.js
-import axios from "axios";
-
+import axiosInstance from "./axiosInstance";
 export const fetchCategories = async () => {
-  const { data } = await axios.get("/api/categories/"); // Prefix with /api
+  const { data } = await axiosInstance.get("/categories/"); // Prefix with /api
   return data;
 };
 
 export const fetchFeaturedProducts = async () => {
-  const { data } = await axios.get("/api/products/"); // Prefix with /api
+  const { data } = await axiosInstance.get("/products/"); // Prefix with /api
   return data;
 };
 
 export const fetchTopNGOs = async () => {
-  const { data } = await axios.get("/api/ngo/approved"); // Prefix with /api
+  const { data } = await axiosInstance.get("/ngo/approved"); // Prefix with /api
   return data;
 };

@@ -14,7 +14,7 @@ import {
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
 import { useNavigate } from "react-router-dom";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 import API_BASE_URL from "../config";
 import { useThemeContext } from "../context/ThemeContext";
 
@@ -91,7 +91,7 @@ function UserRegister() {
     }
 
     try {
-      const response = await axios.post(`${API_BASE_URL}/register/user`, formData, {
+      const response = await axiosInstance.post(`${API_BASE_URL}/register/user`, formData, {
         headers: { "Content-Type": "application/json" },
       });
 

@@ -7,7 +7,7 @@ function OrderSuccess() {
 
   useEffect(() => {
     const timer = setTimeout(() => {
-      navigate("/dashboard/user/orders"); // ✅ Redirect to the "My Orders" page after 5 seconds
+      navigate("/user/orders"); // ✅ Redirect to the "My Orders" page after 5 seconds
     }, 5000);
 
     return () => clearTimeout(timer); // Cleanup to avoid memory leaks

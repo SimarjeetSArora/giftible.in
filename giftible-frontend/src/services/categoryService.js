@@ -1,4 +1,4 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance";
 
 const API_URL = `${import.meta.env.VITE_BACKEND_URL}/categories`;
 
@@ -6,7 +6,7 @@ const getToken = () => localStorage.getItem("token");
 
 // ✅ NGO: Create Category
 export const createCategory = async (categoryData) => {
-  const response = await axios.post(`${API_URL}/`, categoryData, {
+  const response = await axiosInstance.post(`${API_URL}/`, categoryData, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return response.data;
@@ -14,13 +14,13 @@ export const createCategory = async (categoryData) => {
 
 // 📥 Public: Fetch Approved Categories
 export const fetchApprovedCategories = async () => {
-  const response = await axios.get(`${API_URL}/`);
+  const response = await axiosInstance.get(`${API_URL}/`);
   return response.data;
 };
 
 // 🛡️ Admin: Fetch All Categories
 export const fetchAllCategories = async () => {
-  const response = await axios.get(`${API_URL}/all`, {
+  const response = await axiosInstance.get(`${API_URL}/all`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return response.data;
@@ -28,7 +28,7 @@ export const fetchAllCategories = async () => {
 
 // ✅ Admin: Approve/Reject Category
 export const approveCategory = async (categoryId, is_approved) => {
-  const response = await axios.patch(
+  const response = await axiosInstance.patch(
     `${API_URL}/${categoryId}/approve`,
     { is_approved },
     { headers: { Authorization: `Bearer ${getToken()}` } }

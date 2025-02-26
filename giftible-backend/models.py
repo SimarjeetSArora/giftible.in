@@ -1,11 +1,13 @@
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Float, ForeignKey,
-    Enum as SqlEnum, UniqueConstraint
+    Enum, UniqueConstraint, func
 )
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime, timedelta
 import enum
+
+
 
 
 
@@ -25,8 +27,11 @@ class User(Base):
     contact_number = Column(String(15), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     role = Column(String(10), nullable=False, default="user")  # user, ngo, admin
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    
 
     # Relationships
+    universal_user = relationship("UniversalUser", back_populates="user")
     coupon_usages = relationship("CouponUsage", back_populates="user", cascade="all, delete-orphan")
     carts = relationship("Cart", back_populates="user", cascade="all, delete-orphan")
     addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
@@ -53,11 +58,14 @@ class NGO(Base):
     city = Column(String(100), nullable=False)
     state = Column(String(100), nullable=False)
     pincode = Column(String(6), nullable=False, comment="6-digit PIN code")
-
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    
+
 
     # Relationships
+    universal_user = relationship("UniversalUser", back_populates="ngo")
     products = relationship("Product", back_populates="ngo", cascade="all, delete-orphan")
     categories = relationship("Category", back_populates="ngo", cascade="all, delete-orphan")
 
@@ -72,6 +80,39 @@ class Admin(Base):
     contact_number = Column(String(15), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     role = Column(String(10), default="admin", nullable=False)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    
+    universal_user = relationship("UniversalUser", back_populates="admin")
+
+
+class UniversalUser(Base):
+    __tablename__ = "universal_users"
+
+    id = Column(Integer, primary_key=True, index=True)
+    contact_number = Column(String(15), unique=True, nullable=False)
+    email = Column(String(100), unique=True, nullable=False)
+    password = Column(String(255), nullable=False)
+    role = Column(Enum('user', 'ngo', 'admin'), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+    user = relationship("User", back_populates="universal_user", uselist=False)
+    ngo = relationship("NGO", back_populates="universal_user", uselist=False)
+    admin = relationship("Admin", back_populates="universal_user", uselist=False)
+    refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+
+class RefreshToken(Base):
+    __tablename__ = "refresh_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    token = Column(String(255), unique=True, nullable=False)
+    expires_at = Column(DateTime, nullable=False)
+    created_at = Column(DateTime, server_default=func.now())
+
+    # Relationship to UniversalUser
+    user = relationship("UniversalUser", back_populates="refresh_tokens")
+
 
 # ✅ Product Model
 class Product(Base):
@@ -133,10 +174,13 @@ class Address(Base):
 
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    full_name = Column(String(100), nullable=False)             # ✅ Added full name
+    contact_number = Column(String(15), nullable=False)         # ✅ Added contact number
     address_line = Column(String(255), nullable=False)
+    landmark = Column(String(100), nullable=True)               # ✅ Added landmark
     city = Column(String(50), nullable=False)
     state = Column(String(50), nullable=False)
-    postal_code = Column(String(10), nullable=False)
+    pincode = Column(String(10), nullable=False)                # ✅ Renamed from postal_code
     is_default = Column(Boolean, default=False)
 
     # Relationships
@@ -149,7 +193,8 @@ class Coupon(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), unique=True, nullable=False)
     discount_percentage = Column(Float, nullable=False)
-    usage_limit = Column(SqlEnum(UsageLimit), nullable=False, default=UsageLimit.one_time)  # Enum field
+    max_discount = Column(Float, nullable=False, default=100.0)  # ✅ Add this field
+    usage_limit = Column(Enum(UsageLimit), nullable=False, default=UsageLimit.one_time)  # Enum field
     minimum_order_amount = Column(Float, nullable=False, default=0.0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -176,6 +221,7 @@ class CouponUsage(Base):
         UniqueConstraint("user_id", "coupon_id", name="_user_coupon_uc"),
     )
 
+
 class OrderStatus(enum.Enum):
     pending = "Pending"
     confirmed = "Confirmed"
@@ -192,7 +238,7 @@ class Order(Base):
     ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)
     total_amount = Column(Float, nullable=False)
     address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False)  # ✅ Add this if missing
-    status = Column(SqlEnum(OrderStatus), default=OrderStatus.pending, nullable=False)
+    status = Column(Enum(OrderStatus), default=OrderStatus.pending, nullable=False)
     razorpay_order_id = Column(String(100), nullable=True)  # ✅ Add this line
     payment_id = Column(String(255), nullable=True)  # ✅ Add this line
     created_at = Column(DateTime, default=datetime.utcnow)

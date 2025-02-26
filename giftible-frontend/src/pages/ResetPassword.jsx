@@ -13,7 +13,7 @@ import {
   Alert,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 import { useThemeContext } from "../context/ThemeContext";
 import API_BASE_URL from "../config";
 
@@ -47,7 +47,7 @@ const ResetPassword = () => {
     }
 
     try {
-      await axios.post(`${API_BASE_URL}/reset-password`, { token, new_password: password });
+      await axiosInstance.post(`${API_BASE_URL}/reset-password`, { token, new_password: password });
       setSnackbar({ open: true, message: "Password reset successful! Redirecting...", severity: "success" });
       setTimeout(() => navigate("/login"), 2000);
     } catch (err) {

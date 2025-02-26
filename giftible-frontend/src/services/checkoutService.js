@@ -1,11 +1,11 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance";
 import API_BASE_URL from "../config";
 
 const getToken = () => localStorage.getItem("token");
 
 // ✅ Fetch user addresses
 export const fetchAddresses = async () => {
-  const { data } = await axios.get(`${API_BASE_URL}/checkout/addresses`, {
+  const { data } = await axiosInstance.get(`${API_BASE_URL}/checkout/addresses`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return data;
@@ -13,15 +13,25 @@ export const fetchAddresses = async () => {
 
 // ✅ Add new address
 export const addAddress = async (addressData) => {
-  const { data } = await axios.post(`${API_BASE_URL}/checkout/address`, addressData, {
+  const { data } = await axiosInstance.post(`${API_BASE_URL}/checkout/address`, addressData, {
     headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
   });
   return data;
 };
 
+export const fetchAvailableCoupons = async () => {
+  try {
+    const response = await axiosInstance.get(`${API_BASE_URL}/checkout/coupons/live`);
+    return response.data;  // Returns an array of live coupons
+  } catch (error) {
+    console.error("❌ Error fetching coupons:", error);
+    throw error.response?.data?.detail || "Failed to fetch coupons.";
+  }
+};
+
 // ✅ Apply coupon
 export const applyCoupon = async (couponCode) => {
-  const { data } = await axios.post(
+  const { data } = await axiosInstance.post(
     `${API_BASE_URL}/checkout/apply-coupon`,
     { code: couponCode },
     { headers: { Authorization: `Bearer ${getToken()}` } }
@@ -31,7 +41,7 @@ export const applyCoupon = async (couponCode) => {
 
 // ✅ Fetch cart summary
 export const fetchCartSummary = async (couponCode = "") => {
-  const { data } = await axios.get(`${API_BASE_URL}/checkout/cart-summary`, {
+  const { data } = await axiosInstance.get(`${API_BASE_URL}/checkout/cart-summary`, {
     headers: { Authorization: `Bearer ${getToken()}` },
     params: { coupon_code: couponCode },
   });
@@ -40,7 +50,7 @@ export const fetchCartSummary = async (couponCode = "") => {
 
 // ✅ Place order
 export const placeOrder = async ({ address_id, coupon_code, payment_id, order_id, amount, signature }) => {
-  const { data } = await axios.post(
+  const { data } = await axiosInstance.post(
     `${API_BASE_URL}/orders/place-order`,
     { address_id, coupon_code, payment_id, order_id, amount, signature },  // Ensure all fields are present
     {
@@ -55,7 +65,7 @@ export const placeOrder = async ({ address_id, coupon_code, payment_id, order_id
 
 // ✅ Verify payment after completion
 export const verifyPayment = async (paymentData) => {
-    const { data } = await axios.post(
+    const { data } = await axiosInstance.post(
       `${API_BASE_URL}/payments/razorpay/verify`,
       paymentData,
       {
@@ -70,7 +80,7 @@ export const verifyPayment = async (paymentData) => {
 
 
   export const initiateRazorpayPayment = async ({ amount }) => {
-    const { data } = await axios.post(
+    const { data } = await axiosInstance.post(
       `${API_BASE_URL}/payments/razorpay/order`,
       { amount: Number(amount) },  // ✅ Ensure it's a number
       {

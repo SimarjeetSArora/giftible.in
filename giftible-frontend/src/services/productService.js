@@ -1,10 +1,10 @@
-import axios from "axios";
+import axiosInstance from "./axiosInstance";
 import API_BASE_URL from "../config";
 
 // Add a new product
 export const addProduct = async (formData) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/products/add`, formData, {
+      const response = await axiosInstance.post(`${API_BASE_URL}/products/add`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data;
@@ -20,7 +20,7 @@ export const addProduct = async (formData) => {
 // Get products for an NGO
 export const getNGOProducts = async (ngoId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/products/ngo/${ngoId}`);
+      const response = await axiosInstance.get(`${API_BASE_URL}/products/ngo/${ngoId}`);
       return response.data.products;  // Adjust based on backend response structure
     } catch (error) {
       throw new Error(error.response?.data?.detail || "Failed to fetch products.");
@@ -30,7 +30,7 @@ export const getNGOProducts = async (ngoId) => {
 // Make product live
 export const makeProductLive = async (productId) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/products/${productId}/live`);
+    const response = await axiosInstance.post(`${API_BASE_URL}/products/${productId}/live`);
     return response.data;
   } catch (error) {
     throw error.response?.data?.detail || "Failed to make product live.";
@@ -40,7 +40,7 @@ export const makeProductLive = async (productId) => {
 // Make product unlive
 export const makeProductUnlive = async (productId) => {
   try {
-    const response = await axios.post(`${API_BASE_URL}/products/${productId}/unlive`);
+    const response = await axiosInstance.post(`${API_BASE_URL}/products/${productId}/unlive`);
     return response.data;
   } catch (error) {
     throw error.response?.data?.detail || "Failed to make product unlive.";
@@ -50,7 +50,7 @@ export const makeProductUnlive = async (productId) => {
 // Delete product
 export const deleteProduct = async (productId) => {
   try {
-    const response = await axios.delete(`${API_BASE_URL}/products/delete/${productId}`);
+    const response = await axiosInstance.delete(`${API_BASE_URL}/products/delete/${productId}`);
     return response.data;
   } catch (error) {
     throw error.response?.data?.detail || "Failed to delete product.";
@@ -60,7 +60,7 @@ export const deleteProduct = async (productId) => {
 // Fetch pending products
 export const getPendingProducts = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/products/pending`);
+      const response = await axiosInstance.get(`${API_BASE_URL}/products/pending`);
       return response.data;
     } catch (error) {
       throw error.response?.data?.detail || "Failed to fetch pending products.";
@@ -70,7 +70,7 @@ export const getPendingProducts = async () => {
   // Approve product
   export const approveProduct = async (productId) => {
     try {
-      const response = await axios.post(`${API_BASE_URL}/products/approve/${productId}`);
+      const response = await axiosInstance.post(`${API_BASE_URL}/products/approve/${productId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data?.detail || "Failed to approve product.";
@@ -83,7 +83,7 @@ export const getPendingProducts = async () => {
       const formData = new FormData();
       formData.append("reason", reason);
   
-      const response = await axios.post(`${API_BASE_URL}/products/reject/${productId}`, formData, {
+      const response = await axiosInstance.post(`${API_BASE_URL}/products/reject/${productId}`, formData, {
         headers: { "Content-Type": "multipart/form-data" },
       });
       return response.data;
@@ -95,7 +95,7 @@ export const getPendingProducts = async () => {
   // Fetch all approved and live products
 export const getAllProducts = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/products/`);
+      const response = await axiosInstance.get(`${API_BASE_URL}/products/`);
       return response.data;
     } catch (error) {
       throw error.response?.data?.detail || "Failed to fetch products.";
@@ -105,7 +105,7 @@ export const getAllProducts = async () => {
   // Fetch product details
   export const getProductDetails = async (productId) => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/products/${productId}`);
+      const response = await axiosInstance.get(`${API_BASE_URL}/products/${productId}`);
       return response.data;
     } catch (error) {
       throw error.response?.data?.detail || "Failed to fetch product details.";

@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { Container, TextField, Button, Typography, Box, CircularProgress } from "@mui/material";
-import axios from "axios";
+import axiosInstance from "../../services/axiosInstance";
 import { addProduct } from "../../services/productService";
 import API_BASE_URL from "../../config";
 
@@ -24,7 +24,7 @@ function AddProduct({ ngoId }) {
       if (!ngoId && loggedInUser?.token) {
         try {
           setLoadingNgoId(true);
-          const response = await axios.get(`${API_BASE_URL}/user/ngo`, {
+          const response = await axiosInstance.get(`${API_BASE_URL}/user/ngo`, {
             headers: { Authorization: `Bearer ${loggedInUser.token}` },
           });
           setEffectiveNgoId(response.data.ngo_id);

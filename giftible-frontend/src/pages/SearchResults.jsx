@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import { useLocation, useNavigate } from "react-router-dom";
 import { Box, Typography, CircularProgress, Chip, Paper } from "@mui/material";
 import API_BASE_URL from "../config";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 
 const SearchResults = () => {
   const { search } = useLocation();
@@ -15,7 +15,7 @@ const SearchResults = () => {
     if (query) {
       setLoading(true);
 
-      axios
+      axiosInstance
         .get(`${API_BASE_URL}/api/search`, { params: { q: query } })
         .then((res) => {
           setResults(res.data);

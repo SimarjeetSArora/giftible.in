@@ -30,7 +30,7 @@ import SearchBar from "../SearchBar";
 
 
 
-const Navbar = () => {
+const NotLoggedInNavbar = () => {
   const theme = useTheme();
   const { mode, toggleMode } = useThemeContext();
   const [drawerOpen, setDrawerOpen] = useState(false);
@@ -58,7 +58,7 @@ const Navbar = () => {
         <Toolbar sx={{ justifyContent: "space-between", minHeight: "70px", padding: "0 16px" }}>
           {/* 🔗 Left: Logo */}
           <NavLink to="/" style={{ display: "flex", alignItems: "center" }}>
-            <Box component="img" src="assets/logo.png" alt="Giftible Logo" sx={{ width: "auto", maxHeight: "40px" }} />
+            <Box component="img" src="/assets/logo.png" alt="Giftible Logo" sx={{ width: "auto", maxHeight: "40px" }} />
           </NavLink>
 
           {/* 🔍 Center: Search Bar */}
@@ -135,4 +135,4 @@ const Navbar = () => {
   );
 };
 
-export default Navbar;
+export default NotLoggedInNavbar;

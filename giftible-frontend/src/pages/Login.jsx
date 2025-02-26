@@ -13,7 +13,7 @@ import {
 } from "@mui/material";
 import { useNavigate, Link } from "react-router-dom";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 import API_BASE_URL from "../config";
 import { useThemeContext } from "../context/ThemeContext";
 import { useAuth } from "../context/AuthContext";
@@ -46,34 +46,36 @@ function Login() {
     loginData.append("password", password);
   
     try {
-      const { data } = await axios.post(`${API_BASE_URL}/token`, loginData, {
+      const { data } = await axiosInstance.post(`${API_BASE_URL}/token`, loginData, {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
   
-      const { access_token, role, id } = data;
+      const { access_token, refresh_token, role, id } = data;
   
-      // Store token and user details
-      localStorage.setItem("token", access_token);
+      // ✅ Store tokens and user details
+      localStorage.setItem("token", access_token);  
+      localStorage.setItem("refresh_token", refresh_token);  
       localStorage.setItem("role", role);
       localStorage.setItem("user", JSON.stringify({ id, role }));
       setAuthRole(role);
-
+  
+      // ✅ Remember Me functionality
       if (rememberMe) {
         localStorage.setItem("rememberedContact", contactNumber);
       } else {
         localStorage.removeItem("rememberedContact");
       }
   
-      // ✅ Redirect based on user role
-      navigate(role === "admin" ? "/dashboard/admin" : role === "ngo" ? "/dashboard/ngo" : "/dashboard/user");
+      // ✅ Redirect based on role
+      navigate(role === "admin" ? "/dashboard/admin" : role === "ngo" ? "/dashboard/ngo" : "/", { replace: true });
   
     } catch (err) {
-      // ✅ Display the error detail from the backend if available, otherwise show a generic error
       const errorMessage = err.response?.data?.detail || "❌ An unexpected error occurred.";
       setError(errorMessage);
-      console.error("Login error:", errorMessage);  // Log for debugging
+      console.error("Login error:", errorMessage);  // Debugging
     }
   };
+  
   
 
   return (

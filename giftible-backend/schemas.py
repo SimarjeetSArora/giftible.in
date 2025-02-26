@@ -1,4 +1,4 @@
-from pydantic import BaseModel, EmailStr, constr
+from pydantic import BaseModel, EmailStr, constr, Field
 from typing import Optional, List
 from models import UsageLimit, OrderStatus
 from datetime import datetime
@@ -45,11 +45,13 @@ class CartItemCreate(BaseModel):
     quantity: int
 
 class AddressCreate(BaseModel):
-    address_line: str
-    city: str
-    state: str
-    postal_code: str
-
+    full_name: str = Field(..., max_length=100, description="Full name of the address holder")
+    contact_number: str = Field(..., max_length=15, description="Contact number")
+    address_line: str = Field(..., max_length=255, description="Street address")
+    landmark: str = Field(None, max_length=100, description="Nearby landmark (optional)")
+    pincode: str = Field(..., max_length=10, description="Pincode of the address")
+    city: str = Field(..., max_length=50, description="City name")
+    state: str = Field(..., max_length=50, description="State name")
 
 class CouponApply(BaseModel):
     code: str
@@ -57,9 +59,21 @@ class CouponApply(BaseModel):
 class CouponCreate(BaseModel):
     code: str
     discount_percentage: float
+    max_discount: float  # ✅ Added
     usage_limit: UsageLimit
     minimum_order_amount: float
     is_active: bool = True
+
+class CouponResponse(BaseModel):
+    id: int
+    code: str
+    discount_percentage: float
+    usage_limit: str
+    minimum_order_amount: float
+    is_active: bool
+
+    class Config:
+        orm_mode = True
 
 class OrderItemResponse(BaseModel):
     product_id: int
@@ -157,3 +171,10 @@ class SearchResult(BaseModel):
     type: str
     name: str
     description: str
+
+class RefreshTokenRequest(BaseModel):
+    refresh_token: str
+
+class LogoutRequest(BaseModel):
+    refresh_token: str
+

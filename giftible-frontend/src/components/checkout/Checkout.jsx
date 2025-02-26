@@ -1,132 +1,74 @@
 import React, { useEffect, useState } from "react";
 import {
-  Container,
-  Typography,
-  TextField,
-  Button,
-  Box,
-  Select,
-  MenuItem,
-  Divider,
+  Container, Typography, Button, Box, Grid, Card, CardContent, IconButton, Divider,
+  Modal, Paper
 } from "@mui/material";
+import { AddCircle, LocationOn } from "@mui/icons-material";
 import {
-  fetchAddresses,
-  addAddress,
-  applyCoupon,
-  fetchCartSummary,
-  initiateRazorpayPayment,
-  verifyPayment,
-  placeOrder,
+  fetchAddresses, addAddress, fetchCartSummary,
+  initiateRazorpayPayment, verifyPayment, placeOrder
 } from "../../services/checkoutService";
+import AddressForm from "../../components/AddressForm";
+import CouponSelector from "../../components/CouponSelector";
 
 function Checkout() {
   const [addresses, setAddresses] = useState([]);
   const [selectedAddress, setSelectedAddress] = useState("");
-  const [newAddress, setNewAddress] = useState({
-    address_line: "",
-    city: "",
-    state: "",
-    postal_code: "",
-  });
-  const [couponCode, setCouponCode] = useState("");
-  const [cartSummary, setCartSummary] = useState({
-    total: 0,
-    discount: 0,
-    final_total: 0,
-  });
+  const [showAddressForm, setShowAddressForm] = useState(false);
+  const [appliedCoupon, setAppliedCoupon] = useState(null);
+  const [cartSummary, setCartSummary] = useState({ total: 0, discount: 0, final_total: 0 });
+  const [platformFee] = useState(20);
   const [grandTotal, setGrandTotal] = useState(0);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
-  const loggedInUser = JSON.parse(localStorage.getItem("user"));
 
   useEffect(() => {
-    const loadInitialData = async () => {
+    const loadData = async () => {
       try {
         const addressesData = await fetchAddresses();
         setAddresses(addressesData);
-        const summary = await fetchCartSummary(couponCode);
+
+        const summary = await fetchCartSummary(appliedCoupon?.code);
         setCartSummary(summary);
-        setGrandTotal(summary.final_total);
+        setGrandTotal(summary.final_total + platformFee);
       } catch (error) {
-        console.error("❌ Failed to load data:", error);
-        alert("❌ Failed to load data.");
+        console.error("❌ Error loading data:", error);
       }
     };
-    loadInitialData();
-  }, [couponCode]);
+    loadData();
+  }, [appliedCoupon, platformFee]);
 
-  const handleAddAddress = async () => {
-    const { address_line, city, state, postal_code } = newAddress;
-    if (!address_line || !city || !state || !postal_code) {
-      return alert("⚠️ Please fill all address fields.");
-    }
-
+  const handleAddressSubmit = async (address) => {
     try {
-      const addedAddress = await addAddress(newAddress);
-      setAddresses([...addresses, addedAddress.address]);
-      setSelectedAddress(addedAddress.address.id);
-      setNewAddress({ address_line: "", city: "", state: "", postal_code: "" });
-      alert("✅ Address added successfully!");
+      const response = await addAddress(address);
+      setAddresses((prev) => [...prev, response.address]);
+      setSelectedAddress(response.address.id);
+      setShowAddressForm(false);
     } catch (error) {
       console.error("❌ Error adding address:", error);
-      alert("❌ Error adding address.");
     }
   };
 
-  const handleApplyCoupon = async () => {
-    if (!couponCode) return alert("⚠️ Enter a coupon code.");
-
-    try {
-      await applyCoupon(couponCode);
-      const summary = await fetchCartSummary(couponCode);
-      setCartSummary(summary);
-      setGrandTotal(summary.final_total);
-      alert("✅ Coupon applied successfully!");
-    } catch (error) {
-      console.error("❌ Invalid coupon code:", error);
-      alert("❌ Invalid coupon code.");
-    }
-  };
-
-  const loadRazorpayScript = () => {
-    return new Promise((resolve) => {
-      const existingScript = document.getElementById("razorpay-script");
-      if (!existingScript) {
-        const script = document.createElement("script");
-        script.id = "razorpay-script";
-        script.src = "https://checkout.razorpay.com/v1/checkout.js";
-        script.onload = () => resolve(true);
-        script.onerror = () => resolve(false);
-        document.body.appendChild(script);
-      } else {
-        resolve(true); // Script already loaded
-      }
+  const loadRazorpayScript = () =>
+    new Promise((resolve) => {
+      if (document.getElementById("razorpay-script")) return resolve(true);
+      const script = document.createElement("script");
+      script.id = "razorpay-script";
+      script.src = "https://checkout.razorpay.com/v1/checkout.js";
+      script.onload = () => resolve(true);
+      script.onerror = () => resolve(false);
+      document.body.appendChild(script);
     });
-  };
 
   const handlePayment = async () => {
-    if (!selectedAddress) {
-      alert("⚠️ Please select an address.");
-      return;
-    }
+    if (!selectedAddress) return alert("⚠️ Please select an address.");
 
     const isScriptLoaded = await loadRazorpayScript();
-    if (!isScriptLoaded) {
-      alert("❌ Failed to load Razorpay SDK.");
-      return;
-    }
+    if (!isScriptLoaded) return alert("❌ Failed to load Razorpay SDK.");
 
     try {
       setIsPlacingOrder(true);
-
-      // 🔑 STEP 1: Create a Razorpay order from backend
       const { order_id, amount } = await initiateRazorpayPayment({ amount: grandTotal });
 
-      if (!order_id) {
-        alert("❌ Failed to initiate payment.");
-        return;
-      }
-
-      // 🔑 STEP 2: Open Razorpay payment modal
       const options = {
         key: import.meta.env.VITE_RAZORPAY_KEY_ID,
         amount: amount * 100,
@@ -136,62 +78,30 @@ function Checkout() {
         order_id: order_id,
         handler: async (response) => {
           const { razorpay_payment_id, razorpay_order_id, razorpay_signature } = response;
+          const verifyResponse = await verifyPayment({ razorpay_payment_id, razorpay_order_id, razorpay_signature });
 
-          if (!razorpay_payment_id || !razorpay_order_id || !razorpay_signature) {
-            alert("❌ Missing payment details. Payment verification failed.");
-            return;
-          }
-
-          try {
-            // 🔑 STEP 3: Verify payment signature on backend
-            const verifyResponse = await verifyPayment({
-              razorpay_payment_id,
-              razorpay_order_id,
-              razorpay_signature,
-            });
-            
-            console.log("📦 Placing order with payload:", {
+          if (verifyResponse.status === "success") {
+            await placeOrder({
               address_id: selectedAddress,
-              coupon_code: couponCode,
+              coupon_code: appliedCoupon?.code ?? null,
               payment_id: razorpay_payment_id,
               order_id: razorpay_order_id,
               amount: grandTotal,
               signature: razorpay_signature,
             });
-
-            if (verifyResponse.status === "success") {
-              // 🔑 STEP 4: Place order after successful payment verification
-              const placedOrder = await placeOrder({
-                address_id: selectedAddress,
-                coupon_code: couponCode,
-                payment_id: razorpay_payment_id,
-                order_id: razorpay_order_id,
-                amount: grandTotal,
-                signature: razorpay_signature,
-              });
-
-              alert("✅ Payment & Order placed successfully!");
-              window.location.href = `/order-success`;
-            } else {
-              alert("❌ Payment verification failed.");
-            }
-          } catch (error) {
-            console.error("❌ Payment Verification Error:", error.response?.data || error.message);
-            alert("❌ Error verifying payment.");
+            alert("✅ Order placed successfully!");
+            window.location.href = "/order-success";
+          } else {
+            alert("❌ Payment verification failed.");
           }
         },
-        prefill: {
-          name: loggedInUser?.name ?? "User",
-          email: loggedInUser?.email ?? "user@example.com",
-        },
-        theme: { color: "#3399cc" },
+        theme: { color: "#6A4C93" },
       };
 
-      const razorpayInstance = new window.Razorpay(options);
-      razorpayInstance.open();
+      new window.Razorpay(options).open();
     } catch (error) {
       console.error("❌ Payment Error:", error);
-      alert("❌ Payment failed. Please try again.");
+      alert("❌ Payment failed.");
     } finally {
       setIsPlacingOrder(false);
     }
@@ -199,70 +109,96 @@ function Checkout() {
 
   return (
     <Container maxWidth="md" sx={{ mt: 4 }}>
-      <Typography variant="h4" gutterBottom>Checkout</Typography>
+      <Typography variant="h4" sx={{ color: "#6A4C93", fontWeight: "bold" }}>Checkout</Typography>
 
-      {/* Address Selection */}
+      {/* 🏠 Address Selection */}
       <Box mt={4}>
-        <Typography variant="h6">Select Address</Typography>
-        <Select
-          fullWidth
-          value={selectedAddress}
-          onChange={(e) => setSelectedAddress(e.target.value)}
-          displayEmpty
-        >
-          <MenuItem value="" disabled>Select an address</MenuItem>
-          {addresses.map((addr) => (
-            <MenuItem key={addr.id} value={addr.id}>
-              {`${addr.address_line}, ${addr.city}, ${addr.state} - ${addr.postal_code}`}
-            </MenuItem>
+        <Typography variant="h6" sx={{ color: "#1B1B1B" }}>Select Address</Typography>
+        <Grid container spacing={3} mt={2}>
+          {addresses.map((address) => (
+            <Grid item xs={12} sm={6} key={address.id}>
+              <Card
+                sx={{
+                  border: selectedAddress === address.id ? "2px solid #F5B800" : "1px solid #ccc",
+                  bgcolor: selectedAddress === address.id ? "#F5F5F5" : "#FFFFFF",
+                  height: "190px", cursor: "pointer",
+                }}
+                onClick={() => setSelectedAddress(address.id)}
+              >
+                <CardContent>
+                  <Box display="flex" alignItems="center" mb={1}>
+                    <LocationOn sx={{ color: "#6A4C93" }} />
+                    <Typography variant="subtitle1" ml={1} fontWeight="bold">{address.full_name}</Typography>
+                  </Box>
+                  <Typography variant="body2">{address.contact_number}</Typography>
+                  <Typography variant="body2">{address.address_line}</Typography>
+                  <Typography variant="body2">{`${address.city}, ${address.state} - ${address.pincode}`}</Typography>
+                  {address.landmark && <Typography variant="body2">Landmark: {address.landmark}</Typography>}
+                </CardContent>
+              </Card>
+            </Grid>
           ))}
-        </Select>
+
+          {/* ➕ Add New Address */}
+          <Grid item xs={12} sm={6}>
+            <Card
+              sx={{
+                border: "2px dashed #6A4C93",
+                height: "190px", display: "flex", justifyContent: "center",
+                alignItems: "center", cursor: "pointer",
+              }}
+              onClick={() => setShowAddressForm(true)}
+            >
+              <CardContent sx={{ textAlign: "center" }}>
+                <IconButton sx={{ color: "#6A4C93" }}><AddCircle fontSize="large" /></IconButton>
+                <Typography>Add New Address</Typography>
+              </CardContent>
+            </Card>
+          </Grid>
+        </Grid>
+
+        <Modal open={showAddressForm} onClose={() => setShowAddressForm(false)}>
+          <Box sx={{
+            position: "absolute", top: "50%", left: "50%",
+            transform: "translate(-50%, -50%)", width: 400,
+            bgcolor: "background.paper", borderRadius: "12px", p: 3,
+          }}>
+            <AddressForm onSubmit={handleAddressSubmit} onCancel={() => setShowAddressForm(false)} />
+          </Box>
+        </Modal>
       </Box>
 
-      {/* Add New Address */}
+      <Divider sx={{ my: 4 }} />
+
+      {/* 🎟️ Coupon Section */}
+      <CouponSelector
+        appliedCoupon={appliedCoupon}
+        setAppliedCoupon={setAppliedCoupon}
+        setCartSummary={setCartSummary}
+        setGrandTotal={setGrandTotal}
+        platformFee={platformFee}
+      />
+
+      {/* 🧾 Cart Summary */}
       <Box mt={4}>
-        <Typography variant="subtitle1">Add New Address</Typography>
-        {["address_line", "city", "state", "postal_code"].map((field) => (
-          <TextField
-            key={field}
-            label={field.replace("_", " ").toUpperCase()}
-            fullWidth
-            margin="normal"
-            value={newAddress[field]}
-            onChange={(e) => setNewAddress({ ...newAddress, [field]: e.target.value })}
-          />
-        ))}
-        <Button variant="contained" onClick={handleAddAddress}>Add Address</Button>
+        <Typography variant="h6" sx={{ color: "#1B1B1B" }}>Cart Summary</Typography>
+        <Paper variant="outlined" sx={{ p: 2, mt: 2, bgcolor: "#F9F9F9" }}>
+          <Typography>Subtotal: ₹{cartSummary.total.toFixed(2)}</Typography>
+          <Typography>Discount: ₹{cartSummary.discount.toFixed(2)}</Typography>
+          <Typography>Platform Fee: ₹{platformFee.toFixed(2)}</Typography>
+          <Divider sx={{ my: 2 }} />
+          <Typography variant="h5" sx={{ fontWeight: "bold" }}>
+            Grand Total: ₹{grandTotal.toFixed(2)}
+          </Typography>
+        </Paper>
       </Box>
 
-      {/* Coupon Application */}
-      <Box mt={4}>
-        <Typography variant="h6">Apply Coupon</Typography>
-        <TextField
-          label="Coupon Code"
-          fullWidth
-          margin="normal"
-          value={couponCode}
-          onChange={(e) => setCouponCode(e.target.value)}
-        />
-        <Button variant="contained" color="secondary" onClick={handleApplyCoupon}>Apply Coupon</Button>
-      </Box>
-
-      {/* Cart Summary */}
-      <Box mt={4}>
-        <Typography variant="h6">Cart Summary</Typography>
-        <Typography>Subtotal: ₹{cartSummary.total.toFixed(2)}</Typography>
-        <Typography>Discount: ₹{cartSummary.discount.toFixed(2)}</Typography>
-        <Divider sx={{ my: 2 }} />
-        <Typography variant="h5">Grand Total: ₹{grandTotal.toFixed(2)}</Typography>
-      </Box>
-
-      {/* Payment & Place Order */}
+      {/* 💳 Payment Button */}
       <Box mt={4}>
         <Button
           variant="contained"
-          color="success"
           fullWidth
+          sx={{ bgcolor: "#F5B800", color: "#6A4C93", fontWeight: "bold" }}
           onClick={handlePayment}
           disabled={isPlacingOrder}
         >

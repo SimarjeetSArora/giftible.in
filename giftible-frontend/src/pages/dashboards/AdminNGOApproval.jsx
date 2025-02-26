@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from "react";
-import axios from "axios";
+import axiosInstance from "../../services/axiosInstance";
 import API_BASE_URL from "../../config";
 import {
   Dialog,
@@ -32,7 +32,7 @@ const AdminNGOApproval = () => {
   }, []);
 
   const fetchPendingNGOs = () => {
-    axios
+    axiosInstance
       .get(`${API_BASE_URL}/admin/ngos/pending`)
       .then((response) => {
         setNgos(response.data.pending_ngos || []); // Adjusted for structured response
@@ -44,7 +44,7 @@ const AdminNGOApproval = () => {
   };
 
   const approveNGO = (ngoId) => {
-    axios
+    axiosInstance
       .post(`${API_BASE_URL}/admin/approve-ngo/${ngoId}`)
       .then(() => {
         alert("✅ NGO Approved Successfully!");
@@ -67,7 +67,7 @@ const AdminNGOApproval = () => {
       return;
     }
 
-    axios
+    axiosInstance
       .post(`${API_BASE_URL}/admin/reject-ngo/${selectedNGO.id}`, {
         rejection_reason: rejectionReason,
       })

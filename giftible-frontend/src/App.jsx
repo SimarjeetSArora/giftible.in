@@ -93,7 +93,7 @@ function App() {
 
           <Route element={<PrivateRoute allowedRoles={["user"]} />}>
             <Route path="/dashboard/user" element={<UserDashboard />} />
-            <Route path="/dashboard/user/orders" element={<UserOrderHistory />} />
+            <Route path="/user/orders" element={<UserOrderHistory />} />
             <Route path="/cart" element={<Cart />} />
             <Route path="/checkout" element={<Checkout />} />
             <Route path="/payment-options/:orderId" element={<PaymentOptions />} />

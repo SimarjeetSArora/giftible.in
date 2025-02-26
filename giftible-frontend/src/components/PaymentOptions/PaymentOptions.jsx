@@ -12,7 +12,7 @@ import {
   Button,
   Divider,
 } from "@mui/material";
-import axios from "axios";
+import axiosInstance from "../../services/axiosInstance";
 import API_BASE_URL from "../../config";
 
 function PaymentOptions({ orderId }) {
@@ -35,7 +35,7 @@ function PaymentOptions({ orderId }) {
 
   const fetchOrderDetails = async () => {
     try {
-      const response = await axios.get(`${API_BASE_URL}/orders/${orderId}`);
+      const response = await axiosInstance.get(`${API_BASE_URL}/orders/${orderId}`);
       setOrderDetails(response.data);
       setLoading(false);
     } catch (error) {

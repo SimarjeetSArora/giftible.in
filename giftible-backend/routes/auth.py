@@ -8,63 +8,74 @@ from dotenv import load_dotenv
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import get_db
-from models import User, NGO, Admin
-from schemas import UserCreate, NGOCreate, AdminCreate, UserResponse, ForgotPasswordRequest, ResetPasswordRequest
-from .utils import generate_reset_token, verify_reset_token
+from models import UniversalUser, RefreshToken, User, NGO, Admin
+from schemas import (
+    UserCreate, NGOCreate, AdminCreate, UserResponse, ForgotPasswordRequest, ResetPasswordRequest, LogoutRequest, RefreshTokenRequest
+)
+from .utils import (
+    create_access_token, create_refresh_token,
+    generate_reset_token, verify_reset_token,
+    save_refresh_token, revoke_refresh_token
+)
 from services.email_service import send_reset_email
 from services.sms_service import send_reset_sms
 
-# Initialize router and environment variables
+# 🚀 Initialize router and environment variables
 router = APIRouter()
 load_dotenv()
 
-# Security and JWT Settings
 SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key")
+REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY", "your_refresh_secret_key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
+REFRESH_TOKEN_EXPIRE_DAYS = 7
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 UPLOAD_DIR = "uploads/"
-os.makedirs(UPLOAD_DIR, exist_ok=True)  # Ensure upload directory exists
+os.makedirs(UPLOAD_DIR, exist_ok=True)
 
 
-def create_access_token(data: dict, expires_delta: timedelta | None = None):
-    """Generates a JWT token with expiration."""
-    to_encode = data.copy()
-    expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
-    to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+# 📝 Universal User Registration Helper
+def register_universal_user(db: Session, contact_number: str, email: str, password: str, role: str):
+    if db.query(UniversalUser).filter(
+        (UniversalUser.contact_number == contact_number) | (UniversalUser.email == email)
+    ).first():
+        raise HTTPException(status_code=400, detail="Email or contact number already registered.")
 
-
-@router.post("/register/user")
-def register_user(data: UserCreate, db: Session = Depends(get_db)):
-    """Registers a user."""
-    existing_user = db.query(User).filter(
-        (User.email == data.email) | (User.contact_number == data.contact_number)
-    ).first()
-
-    if existing_user:
-        raise HTTPException(status_code=400, detail="Email or contact number already registered")
-
-    hashed_password = pwd_context.hash(data.password)
-    db_user = User(
-        first_name=data.first_name,
-        last_name=data.last_name,
-        email=data.email,
-        contact_number=data.contact_number,
+    hashed_password = pwd_context.hash(password)
+    user = UniversalUser(
+        contact_number=contact_number,
+        email=email,
         password=hashed_password,
-        role="user",
+        role=role
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    return user
+
+
+# 📝 User Registration
+@router.post("/register/user", response_model=UserResponse)
+def register_user(data: UserCreate, db: Session = Depends(get_db)):
+    universal_user = register_universal_user(db, data.contact_number, data.email, data.password, "user")
+
+    user_profile = User(
+        universal_user_id=universal_user.id,
+        first_name=data.first_name,
+        last_name=data.last_name
     )
 
-    db.add(db_user)
+    db.add(user_profile)
     db.commit()
-    db.refresh(db_user)
+    db.refresh(user_profile)
 
-    return {"message": "User registered successfully!"}
+    return {"message": "User registered successfully!", "user": user_profile}
 
 
+# 📝 NGO Registration with Detailed Fields
 @router.post("/register/ngo")
 def register_ngo(
     ngo_name: str = Form(...),
@@ -73,7 +84,7 @@ def register_ngo(
     email: str = Form(...),
     contact_number: str = Form(...),
     password: str = Form(...),
-    account_holder_name: str = Form(...),  # ✅ New field added
+    account_holder_name: str = Form(...),
     account_number: str = Form(...),
     ifsc_code: str = Form(...),
     address: str = Form(...),
@@ -84,17 +95,10 @@ def register_ngo(
     logo: UploadFile = File(...),
     db: Session = Depends(get_db),
 ):
-    """Registers an NGO."""
+    universal_user = register_universal_user(db, contact_number, email, password, "ngo")
 
-    existing_ngo = db.query(NGO).filter(
-        (NGO.ngo_name == ngo_name) | (NGO.contact_number == contact_number) | (NGO.email == email)
-    ).first()
-
-    if existing_ngo:
-        raise HTTPException(status_code=400, detail="NGO already exists")
-
-    license_path = f"uploads/{license.filename}"
-    logo_path = f"uploads/{logo.filename}"
+    license_path = f"{UPLOAD_DIR}/{license.filename}"
+    logo_path = f"{UPLOAD_DIR}/{logo.filename}"
 
     with open(license_path, "wb") as buffer:
         shutil.copyfileobj(license.file, buffer)
@@ -102,16 +106,12 @@ def register_ngo(
     with open(logo_path, "wb") as buffer:
         shutil.copyfileobj(logo.file, buffer)
 
-    hashed_password = pwd_context.hash(password)
-
-    db_ngo = NGO(
+    ngo_profile = NGO(
+        universal_user_id=universal_user.id,
         ngo_name=ngo_name,
         first_name=first_name,
         last_name=last_name,
-        email=email,
-        contact_number=contact_number,
-        password=hashed_password,
-        account_holder_name=account_holder_name,  # ✅ Added to model instance
+        account_holder_name=account_holder_name,
         account_number=account_number,
         ifsc_code=ifsc_code,
         address=address,
@@ -120,103 +120,90 @@ def register_ngo(
         pincode=pincode,
         license=license_path,
         logo=logo_path,
-        role="ngo",
         is_approved=False
     )
 
-    db.add(db_ngo)
+    db.add(ngo_profile)
     db.commit()
-    db.refresh(db_ngo)
+    db.refresh(ngo_profile)
 
     return {"message": "✅ NGO registered successfully! Awaiting admin approval."}
 
 
+# 📝 Admin Registration
 @router.post("/register/admin", response_model=UserResponse)
-def register_admin(admin: AdminCreate, db: Session = Depends(get_db)):
-    """Registers an admin (No OTP required)."""
-    existing_admin = db.query(Admin).filter(Admin.email == admin.email).first()
+def register_admin(data: AdminCreate, db: Session = Depends(get_db)):
+    universal_user = register_universal_user(db, data.contact_number, data.email, data.password, "admin")
 
-    if existing_admin:
-        raise HTTPException(status_code=400, detail="Email already registered")
-
-    hashed_password = pwd_context.hash(admin.password)
-    db_admin = Admin(
-        **admin.model_dump(exclude={"password"}),
-        password=hashed_password,
-        role="admin"
+    admin_profile = Admin(
+        universal_user_id=universal_user.id,
+        first_name=data.first_name,
+        last_name=data.last_name
     )
 
-    db.add(db_admin)
+    db.add(admin_profile)
     db.commit()
-    db.refresh(db_admin)
+    db.refresh(admin_profile)
 
-    return db_admin
+    return {"message": "Admin registered successfully!", "admin": admin_profile}
 
 
+# 🔑 Login (Universal for All Roles)
 @router.post("/token")
 def login_for_access_token(form_data: OAuth2PasswordRequestForm = Depends(), db: Session = Depends(get_db)):
-    """Logs in a user and generates an access token."""
+    """Unified login for all roles using universal_users table."""
 
-    user = (
-        db.query(User).filter(User.contact_number == form_data.username).first()
-        or db.query(NGO).filter(NGO.contact_number == form_data.username).first()
-        or db.query(Admin).filter(Admin.contact_number == form_data.username).first()
-    )
+    # ✅ Fetch the user from UniversalUser table
+    user = db.query(UniversalUser).filter(UniversalUser.contact_number == form_data.username).first()
 
     if not user or not pwd_context.verify(form_data.password, user.password):
         raise HTTPException(status_code=401, detail="Incorrect contact number or password")
 
-    if isinstance(user, NGO) and not user.is_approved:
-        raise HTTPException(status_code=403, detail="NGO not approved yet")
-
-    if not user.role:
-        raise HTTPException(status_code=400, detail="User role is missing. Contact support.")
-
-    # Generate token with expiration
+    # ✅ Create access and refresh tokens using the correct variable `user`
     access_token = create_access_token(data={"sub": user.contact_number, "role": user.role})
-    
+    refresh_token, expires_at = create_refresh_token(data={"sub": user.contact_number, "role": user.role})
+
+
+    # ✅ Save refresh token with expiry
+    expires_at = datetime.utcnow() + timedelta(days=REFRESH_TOKEN_EXPIRE_DAYS)
+    save_refresh_token(db, user.id, refresh_token, expires_at)
+
     return {
         "access_token": access_token,
+        "refresh_token": refresh_token,
         "token_type": "bearer",
         "role": user.role,
-        "id": user.id,  # ✅ Include the user ID
+        "id": user.id,
     }
 
-@router.post("/forgot-password")
-def forgot_password(request: ForgotPasswordRequest, db: Session = Depends(get_db)):
-    # 🔍 Find the user based on contact number
-    user = db.query(User).filter(User.contact_number == request.contact_number).first()
 
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
 
-    # 🔑 Generate the password reset token
-    token = generate_reset_token(db, user.id)
-    reset_link = f"http://localhost:5173/reset-password?token={token}"  # Replace with actual frontend URL
+# 🔄 Refresh Access Token
+@router.post("/refresh-token")
+def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get_db)):
+    refresh_token = request.refresh_token  # ✅ Access from the request body
 
-    # ✅ Send both Email and SMS in parallel
     try:
-        send_reset_email(user.email, reset_link)
-        send_reset_sms(user.contact_number, reset_link)
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Failed to send reset link: {e}")
+        payload = jwt.decode(refresh_token, REFRESH_SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
 
-    return {"message": "Password reset link sent successfully.", "reset_link": reset_link}
+        token_entry = db.query(RefreshToken).filter_by(token=refresh_token, user_id=user_id).first()
+        if not token_entry or token_entry.expires_at < datetime.utcnow():
+            raise HTTPException(status_code=401, detail="Invalid or expired refresh token.")
+
+        new_access_token = create_access_token({"sub": user_id, "role": payload.get("role")})
+        return {"access_token": new_access_token}
+
+    except jwt.ExpiredSignatureError:
+        raise HTTPException(status_code=401, detail="Refresh token expired.")
+    except jwt.PyJWTError:
+        raise HTTPException(status_code=401, detail="Invalid token.")
 
 
-@router.post("/reset-password")
-def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
-    token_entry = verify_reset_token(db, request.token)
 
-    if not token_entry:
-        raise HTTPException(status_code=400, detail="Invalid or expired token")
-
-    user = db.query(User).filter(User.id == token_entry.user_id).first()
-    if not user:
-        raise HTTPException(status_code=404, detail="User not found")
-
-    user.password = pwd_context.hash(request.new_password)
-    db.delete(token_entry)  # Remove token after successful reset
-    db.commit()
-
-    return {"message": "Password reset successful."}
+# 🚪 Logout & Revoke Token
+@router.post("/logout")
+def logout(request: LogoutRequest, db: Session = Depends(get_db)):
+    if not revoke_refresh_token(db, request.refresh_token):
+        raise HTTPException(status_code=404, detail="Refresh token not found.")
+    return {"message": "Logged out successfully."}

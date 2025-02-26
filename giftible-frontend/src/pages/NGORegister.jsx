@@ -14,7 +14,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import StepContent from "./StepContent";
 import API_BASE_URL from "../config";
 import { useThemeContext } from "../context/ThemeContext";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 import { useNavigate } from "react-router-dom";
 
 
@@ -102,7 +102,7 @@ function NGORegister() {
       const formDataToSend = new FormData();
       Object.entries(formData).forEach(([key, value]) => formDataToSend.append(key, value));
   
-      await axios.post(`${API_BASE_URL}/register/ngo`, formDataToSend, {
+      await axiosInstance.post(`${API_BASE_URL}/register/ngo`, formDataToSend, {
         headers: { "Content-Type": "multipart/form-data" },
       });
   

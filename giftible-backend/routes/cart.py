@@ -1,22 +1,35 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cart, CartItem, Product, User
+from models import Cart, CartItem, Product, User, UniversalUser
 from schemas import CartItemCreate
 from fastapi.security import OAuth2PasswordBearer
-from jose import jwt
+from jose import jwt, JWTError
+from sqlalchemy import func  # ✅ Import func here
+from .utils import SECRET_KEY, ALGORITHM
+
 
 router = APIRouter(prefix="/cart", tags=["Cart"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
-    payload = jwt.decode(token, "your_secret_key", algorithms=["HS256"])
-    user = db.query(User).filter(User.contact_number == payload.get("sub")).first()
-    if not user:
-        raise HTTPException(status_code=401, detail="Invalid authentication credentials")
-    return user
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        user_id = payload.get("sub")
 
+        if not user_id:
+            raise HTTPException(status_code=401, detail="Invalid token payload")
+
+        user = db.query(UniversalUser).filter(UniversalUser.contact_number == user_id).first()
+        if not user:
+            raise HTTPException(status_code=401, detail="User not found")
+
+        return user
+
+    except JWTError as e:
+        print("JWT Error:", e)  # Log the actual error
+        raise HTTPException(status_code=401, detail="Invalid token.")
 
 @router.post("/add", summary="Add or update product in cart")
 def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
@@ -83,3 +96,19 @@ def clear_cart(db: Session = Depends(get_db), current_user: User = Depends(get_c
     db.query(CartItem).filter(CartItem.cart_id == cart.id).delete()
     db.commit()
     return {"message": "Cart cleared."}
+
+
+@router.get("/count/{user_id}")
+def get_cart_item_count(user_id: int, db: Session = Depends(get_db)):
+    # Fetch the user's cart
+    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
+
+    if not cart:
+        return {"count": 0}  # Return 0 if cart doesn't exist
+
+    # ✅ Use func directly, not db.func
+    item_count = db.query(func.coalesce(func.sum(CartItem.quantity), 0)).filter(
+        CartItem.cart_id == cart.id
+    ).scalar()
+
+    return {"count": item_count}

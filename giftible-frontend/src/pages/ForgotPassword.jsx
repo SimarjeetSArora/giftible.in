@@ -9,7 +9,7 @@ import {
   Snackbar,
   Alert,
 } from "@mui/material";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 import API_BASE_URL from "../config";
 import { useThemeContext } from "../context/ThemeContext";
 
@@ -33,7 +33,7 @@ function ForgotPassword() {
     e.preventDefault();
 
     try {
-      const { data } = await axios.post(`${API_BASE_URL}/forgot-password`, {
+      const { data } = await axiosInstance.post(`${API_BASE_URL}/forgot-password`, {
         contact_number: contactNumber,
       });
 

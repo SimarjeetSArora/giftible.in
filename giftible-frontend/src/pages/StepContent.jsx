@@ -5,7 +5,7 @@ import {
   } from "@mui/material";
   import { Visibility, VisibilityOff, Search, UploadFile } from "@mui/icons-material";
   import React, { useState } from "react";
-  import axios from "axios";
+  import axiosInstance from "../services/axiosInstance";
   
 
 
@@ -19,7 +19,7 @@ import {
     }
   
     try {
-      const { data } = await axios.get(`https://api.postalpincode.in/pincode/${formData.pincode}`);
+      const { data } = await axiosInstance.get(`https://api.postalpincode.in/pincode/${formData.pincode}`);
       const location = data[0]?.PostOffice?.[0];
   
       if (location) {
@@ -76,7 +76,7 @@ import {
                   <InputAdornment position="end">
                     <IconButton onClick={async () => {
                       try {
-                        const { data } = await axios.get(`https://ifsc.razorpay.com/${formData.ifsc_code}`);
+                        const { data } = await axiosInstance.get(`https://ifsc.razorpay.com/${formData.ifsc_code}`);
                         setSnackbar({ open: true, message: "✅ Bank details retrieved!", severity: "success" });
                         handleChange({ target: { name: "bank_name", value: data.BANK } });
                         handleChange({ target: { name: "branch", value: data.BRANCH } });
@@ -150,7 +150,7 @@ import {
     <TextField
   name="password"
   label="Password"
-  type={showPassword ? "text" : "password"}
+  type={showPassword ? "password" : "password"}
   fullWidth
   margin="normal"
   value={formData.password}
@@ -158,12 +158,6 @@ import {
   InputProps={{
     endAdornment: (
       <InputAdornment position="end">
-        <IconButton
-          onClick={() => setShowPassword((prev) => !prev)}
-          edge="end"
-        >
-          {showPassword ? <Visibility /> : <VisibilityOff />}
-        </IconButton>
       </InputAdornment>
     ),
   }}

@@ -12,7 +12,7 @@ import {
   useTheme,
 } from "@mui/material";
 import { Visibility, VisibilityOff } from "@mui/icons-material";
-import axios from "axios";
+import axiosInstance from "../services/axiosInstance";
 import API_BASE_URL from "../config";
 import { useThemeContext } from "../context/ThemeContext";
 
@@ -39,7 +39,7 @@ function AdminRegister() {
     setLoading(true);
 
     try {
-      await axios.post(`${API_BASE_URL}/register/admin`, formData);
+      await axiosInstance.post(`${API_BASE_URL}/register/admin`, formData);
       setSnackbar({ open: true, message: "✅ Admin registered successfully!", severity: "success" });
       setFormData({ first_name: "", last_name: "", email: "", contact_number: "", password: "" });
     } catch (err) {

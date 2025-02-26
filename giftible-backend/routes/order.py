@@ -1,27 +1,48 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Order, OrderItem, Product, Cart, CartItem, NGO, User
+from models import Order, OrderItem, Product, Cart, CartItem, NGO, User, UniversalUser
 from schemas import OrderResponse, UpdateOrderStatusRequest
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt
 from services.razorpay_client import create_order, verify_payment_signature
 from datetime import datetime
 from pydantic import BaseModel
+import os
+from dotenv import load_dotenv
 
 router = APIRouter(prefix="/orders", tags=["Orders"])
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
+load_dotenv()
+SECRET_KEY = os.getenv("SECRET_KEY", "your_secret_key")
+ALGORITHM = "HS256"
+
+
 # 🔑 Utility: Get current user from token
 def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
     try:
-        payload = jwt.decode(token, "your_secret_key", algorithms=["HS256"])
-        user = db.query(User).filter(User.contact_number == payload.get("sub")).first()
+        if not token:
+            raise HTTPException(status_code=401, detail="Token not provided.")
+
+        # 🔎 Decode token and verify its signature
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        contact_number = payload.get("sub")
+
+        if not contact_number:
+            raise HTTPException(status_code=401, detail="Invalid token payload. Missing 'sub' field.")
+
+        # ✅ Query UniversalUser table (as per your universal user structure)
+        user = db.query(UniversalUser).filter(UniversalUser.contact_number == contact_number).first()
+
         if not user:
-            raise HTTPException(status_code=401, detail="Invalid credentials")
+            raise HTTPException(status_code=404, detail="User not found.")
+
         return user
-    except Exception:
-        raise HTTPException(status_code=401, detail="Invalid token.")
+
+    except JWTError as e:
+        print(f"JWT Error: {e}")  # 🐛 Debug JWT issues
+        raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
 # 🛒 Place Order (After Payment Verification)
 

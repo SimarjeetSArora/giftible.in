@@ -1,7 +1,7 @@
 // src/pages/ProductDetails.jsx
 import React, { useEffect, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
-import axios from "axios";
+import axiosInstance from "../../services/axiosInstance";
 import {
   Container,
   Typography,
@@ -14,7 +14,7 @@ import {
   Alert,
 } from "@mui/material";
 import API_BASE_URL from "../../config";
-import { addToCart } from "../../services/cartService";
+import { addToCart, fetchCartCount  } from "../../services/cartService";
 
 function ProductDetails() {
   const { productId } = useParams();
@@ -27,7 +27,7 @@ function ProductDetails() {
   useEffect(() => {
     const fetchProduct = async () => {
       try {
-        const response = await axios.get(`${API_BASE_URL}/products/${productId}`);
+        const response = await axiosInstance.get(`${API_BASE_URL}/products/${productId}`);
         setProduct(response.data);
         setSelectedImage(response.data.images[0]?.image_url);
       } catch (error) {
@@ -49,19 +49,28 @@ function ProductDetails() {
     setSnackbarOpen(true); // Show Snackbar
   };
 
+
+
   const handleAddToCart = async () => {
     if (!isLoggedIn) {
-      handleLoginPrompt(); // Show snackbar instead of alert
+      handleLoginPrompt();
       return;
     }
-
+  
     try {
-      await addToCart(product.id, 1);
-      setSnackbarOpen(true); // Show success snackbar if needed
+      await addToCart(product.id, 1); // ✅ Add item to server-side cart
+      setSnackbarOpen(true); // 🎉 Show success message
+  
+      const userId = JSON.parse(localStorage.getItem("user"))?.id;
+      if (userId) {
+        const updatedCount = await fetchCartCount(userId);
+        window.dispatchEvent(new CustomEvent("cartUpdated", { detail: { count: updatedCount } }));
+      }
     } catch (error) {
       console.error("Add to cart failed:", error);
     }
   };
+
 
   const handleBuyNow = () => {
     if (!isLoggedIn) {

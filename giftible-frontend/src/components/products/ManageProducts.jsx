@@ -17,7 +17,7 @@ import {
   makeProductUnlive,
 } from "../../services/productService";
 import API_BASE_URL from "../../config";
-import axios from "axios";
+import axiosInstance from "../../services/axiosInstance";
 
 function ManageProducts({ ngoId }) {
   const [products, setProducts] = useState([]);
@@ -33,7 +33,7 @@ function ManageProducts({ ngoId }) {
       if (!ngoId && loggedInUser?.token) {
         try {
           setLoading(true);
-          const response = await axios.get(`${API_BASE_URL}/user/ngo`, {
+          const response = await axiosInstance.get(`${API_BASE_URL}/user/ngo`, {
             headers: { Authorization: `Bearer ${loggedInUser.token}` },
           });
           setEffectiveNgoId(response.data.ngo_id);
@@ -56,7 +56,7 @@ function ManageProducts({ ngoId }) {
 
       try {
         setLoading(true);
-        const response = await axios.get(`${API_BASE_URL}/products/ngo/${effectiveNgoId}/products`);
+        const response = await axiosInstance.get(`${API_BASE_URL}/products/ngo/${effectiveNgoId}/products`);
         setProducts(Array.isArray(response.data.products) ? response.data.products : []);
       } catch (err) {
         console.error("Error fetching products:", err);
