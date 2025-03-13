@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Cart, CartItem, Product, User, UniversalUser
+from models import Cart, CartItem, Product, UniversalUser
 from schemas import CartItemCreate
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
@@ -13,7 +13,8 @@ router = APIRouter(prefix="/cart", tags=["Cart"])
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
 
-def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)):
+# ✅ Get the currently authenticated user
+def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(get_db)) -> UniversalUser:
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         user_id = payload.get("sub")
@@ -21,7 +22,7 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         if not user_id:
             raise HTTPException(status_code=401, detail="Invalid token payload")
 
-        user = db.query(UniversalUser).filter(UniversalUser.contact_number == user_id).first()
+        user = db.query(UniversalUser).filter(UniversalUser.id == user_id).first()
         if not user:
             raise HTTPException(status_code=401, detail="User not found")
 
@@ -31,11 +32,13 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         print("JWT Error:", e)  # Log the actual error
         raise HTTPException(status_code=401, detail="Invalid token.")
 
+
+# ✅ Add Product to Cart
 @router.post("/add", summary="Add or update product in cart")
-def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
+    cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
     if not cart:
-        cart = Cart(user_id=current_user.id)
+        cart = Cart(universal_user_id=current_user.id)
         db.add(cart)
         db.commit()
         db.refresh(cart)
@@ -51,9 +54,10 @@ def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_use
     return {"message": "Item added to cart."}
 
 
+# ✅ Fetch Cart Items
 @router.get("/", summary="Get user cart")
-def get_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+def get_cart(db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
+    cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
     if not cart:
         return {"cart_items": []}
 
@@ -71,10 +75,10 @@ def get_cart(db: Session = Depends(get_db), current_user: User = Depends(get_cur
     return {"cart_items": cart_items}
 
 
-
+# ✅ Remove Product from Cart
 @router.delete("/remove/{product_id}", summary="Remove item from cart")
-def remove_from_cart(product_id: int, db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+def remove_from_cart(product_id: int, db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
+    cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
     if not cart:
         raise HTTPException(status_code=404, detail="Cart not found")
 
@@ -87,9 +91,11 @@ def remove_from_cart(product_id: int, db: Session = Depends(get_db), current_use
     return {"message": "Item removed from cart."}
 
 
+# ✅ Clear Entire Cart
 @router.delete("/clear", summary="Clear the entire cart")
-def clear_cart(db: Session = Depends(get_db), current_user: User = Depends(get_current_user)):
-    cart = db.query(Cart).filter(Cart.user_id == current_user.id).first()
+def clear_cart(db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
+    cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
+
     if not cart:
         raise HTTPException(status_code=404, detail="Cart not found")
 
@@ -98,15 +104,14 @@ def clear_cart(db: Session = Depends(get_db), current_user: User = Depends(get_c
     return {"message": "Cart cleared."}
 
 
-@router.get("/count/{user_id}")
-def get_cart_item_count(user_id: int, db: Session = Depends(get_db)):
-    # Fetch the user's cart
-    cart = db.query(Cart).filter(Cart.user_id == user_id).first()
+# ✅ Get Cart Item Count
+@router.get("/count", summary="Get total cart item count")
+def get_cart_item_count(db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
+    cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
 
     if not cart:
-        return {"count": 0}  # Return 0 if cart doesn't exist
+        return {"count": 0}  # ✅ Return 0 instead of raising an error
 
-    # ✅ Use func directly, not db.func
     item_count = db.query(func.coalesce(func.sum(CartItem.quantity), 0)).filter(
         CartItem.cart_id == cart.id
     ).scalar()

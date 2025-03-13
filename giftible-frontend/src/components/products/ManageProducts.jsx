@@ -19,44 +19,28 @@ import {
 import API_BASE_URL from "../../config";
 import axiosInstance from "../../services/axiosInstance";
 
-function ManageProducts({ ngoId }) {
+function ManageProducts() {
   const [products, setProducts] = useState([]);
   const [message, setMessage] = useState("");
-  const [effectiveNgoId, setEffectiveNgoId] = useState(ngoId || null);
+  const [effectiveUserId, setEffectiveUserId] = useState(null);
   const [loading, setLoading] = useState(false);
 
   const loggedInUser = JSON.parse(localStorage.getItem("user"));
 
-  // ✅ Fetch NGO ID if not provided
+  // ✅ Fetch User ID
   useEffect(() => {
-    const fetchNgoId = async () => {
-      if (!ngoId && loggedInUser?.token) {
-        try {
-          setLoading(true);
-          const response = await axiosInstance.get(`${API_BASE_URL}/user/ngo`, {
-            headers: { Authorization: `Bearer ${loggedInUser.token}` },
-          });
-          setEffectiveNgoId(response.data.ngo_id);
-        } catch (error) {
-          console.error("Error fetching NGO ID:", error);
-          setMessage("❌ Failed to fetch NGO ID.");
-        } finally {
-          setLoading(false);
-        }
-      }
-    };
+    if (!effectiveUserId && loggedInUser?.id) {
+      setEffectiveUserId(loggedInUser.id);
+    }
+  }, [loggedInUser]);
 
-    fetchNgoId();
-  }, [ngoId, loggedInUser?.token]);
-
-  // ✅ Fetch products when effective NGO ID is set
+  // ✅ Fetch products when effectiveUserId is set
   useEffect(() => {
     const fetchProducts = async () => {
-      if (!effectiveNgoId) return;
-
+      if (!effectiveUserId) return;
       try {
         setLoading(true);
-        const response = await axiosInstance.get(`${API_BASE_URL}/products/ngo/${effectiveNgoId}/products`);
+        const response = await axiosInstance.get(`${API_BASE_URL}/products/my-products`);
         setProducts(Array.isArray(response.data.products) ? response.data.products : []);
       } catch (err) {
         console.error("Error fetching products:", err);
@@ -65,16 +49,15 @@ function ManageProducts({ ngoId }) {
         setLoading(false);
       }
     };
-
     fetchProducts();
-  }, [effectiveNgoId]);
+  }, [effectiveUserId]);
 
   const handleDelete = async (productId) => {
     if (window.confirm("Are you sure you want to delete this product?")) {
       try {
         await deleteProduct(productId);
         setMessage("✅ Product deleted successfully.");
-        setProducts((prev) => prev.filter((product) => product.id !== productId));  // Immediate UI update
+        setProducts((prev) => prev.filter((product) => product.id !== productId));
       } catch (err) {
         console.error("Delete Error:", err);
         setMessage("❌ Failed to delete product.");
@@ -90,7 +73,6 @@ function ManageProducts({ ngoId }) {
 
       setMessage(`✅ Product is now ${currentStatus ? "unlive" : "live"}.`);
 
-      // Update the local product list instantly
       setProducts((prev) =>
         prev.map((product) =>
           product.id === productId ? { ...product, is_live: !currentStatus } : product
@@ -121,7 +103,7 @@ function ManageProducts({ ngoId }) {
         </Typography>
 
         {message && (
-          <Typography color={message.includes("❌") ? "error" : "primary"} gutterBottom>
+          <Typography color={(typeof message === "string" && message.includes("❌")) ? "error" : "primary"}>
             {message}
           </Typography>
         )}
@@ -133,14 +115,12 @@ function ManageProducts({ ngoId }) {
             {products.map((product) => (
               <Grid item xs={12} sm={6} md={4} key={product.id}>
                 <Card>
-                  {Array.isArray(product.images) && product.images.length > 0 && (
-                    <CardMedia
-                      component="img"
-                      height="140"
-                      image={`${API_BASE_URL}/${product.images[0]?.image_url}`}
-                      alt={product.name}
-                    />
-                  )}
+                  <CardMedia
+                    component="img"
+                    height="140"
+                    image={product.images?.length > 0 ? `${API_BASE_URL}/${product.images[0]?.image_url}` : "/placeholder-image.jpg"}
+                    alt={product.name}
+                  />
                   <CardContent>
                     <Typography variant="h6">{product.name}</Typography>
                     <Typography variant="body2" color="textSecondary">{product.description}</Typography>

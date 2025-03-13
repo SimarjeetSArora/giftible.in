@@ -2,7 +2,7 @@ import axiosInstance from "./axiosInstance";
 import API_BASE_URL from "../config";
 
 // Retrieve token from localStorage
-const getToken = () => localStorage.getItem("token");
+const getToken = () => localStorage.getItem("access_token"); // ✅ Fix incorrect key
 
 // Add or update an item in the cart
 export const addToCart = async (productId, quantity) => {
@@ -26,9 +26,7 @@ export const addToCart = async (productId, quantity) => {
 // Fetch the user’s cart
 export const fetchCart = async () => {
   try {
-    const response = await axiosInstance.get(`${API_BASE_URL}/cart/`, {
-      headers: { Authorization: `Bearer ${getToken()}` },
-    });
+    const response = await axiosInstance.get(`${API_BASE_URL}/cart`); // ✅ Remove trailing `/`
     return response.data.cart_items;
   } catch (error) {
     throw error.response?.data?.detail || "Error fetching cart.";
@@ -62,7 +60,7 @@ export const clearCart = async () => {
 // Fetch cart item count from the server
 export const fetchCartCount = async (userId) => {
   try {
-    const response = await axiosInstance.get(`${API_BASE_URL}/cart/count/${userId}`, {
+    const response = await axiosInstance.get(`${API_BASE_URL}/cart/count`, {
       headers: { Authorization: `Bearer ${getToken()}` },
     });
     return response.data.count || 0;

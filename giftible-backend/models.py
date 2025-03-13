@@ -16,96 +16,69 @@ class UsageLimit(enum.Enum):
     one_time = "one_time"       # Coupon can be used once per user
     one_per_day = "one_per_day" # Coupon can be used once per day per user
 
-# ✅ User Model
-class User(Base):
-    __tablename__ = "users"
-
-    id = Column(Integer, primary_key=True, index=True)
-    first_name = Column(String(50), nullable=False)
-    last_name = Column(String(50), nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    contact_number = Column(String(15), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    role = Column(String(10), nullable=False, default="user")  # user, ngo, admin
-    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
-    
-
-    # Relationships
-    universal_user = relationship("UniversalUser", back_populates="user")
-    coupon_usages = relationship("CouponUsage", back_populates="user", cascade="all, delete-orphan")
-    carts = relationship("Cart", back_populates="user", cascade="all, delete-orphan")
-    addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
 
 # ✅ NGO Model
 class NGO(Base):
     __tablename__ = "ngos"
 
     id = Column(Integer, primary_key=True, index=True)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    
     ngo_name = Column(String(100), unique=True, nullable=False)
-    first_name = Column(String(50), nullable=False)
-    last_name = Column(String(50), nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    contact_number = Column(String(15), unique=True, nullable=False, comment="Contact number with country code")
-    password = Column(String(255), nullable=False)
-    license = Column(String(255), nullable=False, comment="Path to license file")
-    logo = Column(String(255), nullable=True, comment="Path to logo")
-    role = Column(String(10), default="ngo", nullable=False)
-    is_approved = Column(Boolean, default=False)
-    account_holder_name = Column(String(100), nullable=False, comment="Name of the bank account holder")  # ✅ New field
+    account_holder_name = Column(String(100), nullable=False)  # ✅ Bank Account Holder Name
     account_number = Column(String(20), nullable=False)
-    ifsc_code = Column(String(11), nullable=False, comment="11-character IFSC code")
+    ifsc_code = Column(String(11), nullable=False)  # ✅ IFSC Code (11 characters)
+    
     address = Column(String(255), nullable=False)
     city = Column(String(100), nullable=False)
     state = Column(String(100), nullable=False)
-    pincode = Column(String(6), nullable=False, comment="6-digit PIN code")
+    pincode = Column(String(6), nullable=False)  # ✅ 6-digit PIN Code
+    
+    license = Column(String(255), nullable=False)  # ✅ License File Path
+    logo = Column(String(255), nullable=True)  # ✅ NGO Logo
+    is_approved = Column(Boolean, default=False)  # ✅ Approval status
+
     created_at = Column(DateTime, default=datetime.utcnow, nullable=False)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
-    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
-    
 
-
-    # Relationships
+    # ✅ Relationships
     universal_user = relationship("UniversalUser", back_populates="ngo")
-    products = relationship("Product", back_populates="ngo", cascade="all, delete-orphan")
-    categories = relationship("Category", back_populates="ngo", cascade="all, delete-orphan")
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow, nullable=False)
 
-# ✅ Admin Model
-class Admin(Base):
-    __tablename__ = "admins"
 
-    id = Column(Integer, primary_key=True, index=True)
-    first_name = Column(String(50), nullable=False)
-    last_name = Column(String(50), nullable=False)
-    email = Column(String(100), unique=True, nullable=False)
-    contact_number = Column(String(15), unique=True, nullable=False)
-    password = Column(String(255), nullable=False)
-    role = Column(String(10), default="admin", nullable=False)
-    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
-    
-    universal_user = relationship("UniversalUser", back_populates="admin")
 
 
 class UniversalUser(Base):
     __tablename__ = "universal_users"
 
     id = Column(Integer, primary_key=True, index=True)
+    first_name = Column(String(50), nullable=False)  # ✅ First Name
+    last_name = Column(String(50), nullable=False)   # ✅ Last Name
     contact_number = Column(String(15), unique=True, nullable=False)
     email = Column(String(100), unique=True, nullable=False)
     password = Column(String(255), nullable=False)
     role = Column(Enum('user', 'ngo', 'admin'), nullable=False)
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    email_verified = Column(Boolean, default=False)  # Track email verification
+    contact_verified = Column(Boolean, default=False)  # Track contact verification
 
-    user = relationship("User", back_populates="universal_user", uselist=False)
+    # ✅ Relationships
     ngo = relationship("NGO", back_populates="universal_user", uselist=False)
-    admin = relationship("Admin", back_populates="universal_user", uselist=False)
     refresh_tokens = relationship("RefreshToken", back_populates="user", cascade="all, delete-orphan")
+    password_reset_tokens = relationship("PasswordResetToken", back_populates="user", cascade="all, delete-orphan")  # ✅ Added Relationship
+    carts = relationship("Cart", back_populates="user")
+    addresses = relationship("Address", back_populates="user", cascade="all, delete-orphan")
+    categories = relationship("Category", back_populates="creator", foreign_keys="[Category.universal_user_id]")
+    products = relationship("Product", back_populates="universal_user", cascade="all, delete-orphan")  # 🔄 Updated
+    orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")  # ✅ Ensure Orders Relationship Exists
+    wishlist = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
     token = Column(String(255), unique=True, nullable=False)
     expires_at = Column(DateTime, nullable=False)
     created_at = Column(DateTime, server_default=func.now())
@@ -119,19 +92,22 @@ class Product(Base):
     __tablename__ = "products"
 
     id = Column(Integer, primary_key=True, index=True)
-    ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"))  # ✅ Fixed
+    category_id = Column(Integer, ForeignKey("categories.id", ondelete="CASCADE"))
     name = Column(String(100), nullable=False)
     description = Column(String(500), nullable=True)
     price = Column(Float, nullable=False)
     stock = Column(Integer, nullable=False, default=0)
-    is_approved = Column(Boolean, default=False)  # Admin approval
-    is_live = Column(Boolean, default=False)      # NGO can make product live/unlive
+    is_approved = Column(Boolean, default=False)  # Admin approval required
+    is_live = Column(Boolean, default=False)  # NGOs can publish/unpublish products
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
     # Relationships
-    ngo = relationship("NGO", back_populates="products")
+    universal_user = relationship("UniversalUser", back_populates="products")  # 🔄 Updated
+    category = relationship("Category", back_populates="products")
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
+    wishlist = relationship("Wishlist", back_populates="product", cascade="all, delete-orphan")
 
 # ✅ Product Image Model
 class ProductImage(Base):
@@ -144,18 +120,30 @@ class ProductImage(Base):
     # Relationships
     product = relationship("Product", back_populates="images")
 
-# ✅ Cart Model
+class Wishlist(Base):
+    __tablename__ = "wishlist"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id", ondelete="CASCADE"), nullable=False)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    user = relationship("UniversalUser", back_populates="wishlist")
+    product = relationship("Product", back_populates="wishlist")
+
+# ✅ Cart Model (Updated to reference UniversalUser)
 class Cart(Base):
     __tablename__ = "carts"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id"), nullable=False)
 
     # Relationships
-    user = relationship("User", back_populates="carts")
+    user = relationship("UniversalUser", back_populates="carts")  # ✅ Updated Relationship
     cart_items = relationship("CartItem", back_populates="cart", cascade="all, delete-orphan")
 
-# ✅ Cart Item Model
+
+# ✅ Cart Item Model (No major changes)
 class CartItem(Base):
     __tablename__ = "cart_items"
 
@@ -173,18 +161,18 @@ class Address(Base):
     __tablename__ = "addresses"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    full_name = Column(String(100), nullable=False)             # ✅ Added full name
-    contact_number = Column(String(15), nullable=False)         # ✅ Added contact number
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)  # ✅ Fix here
+    full_name = Column(String(100), nullable=False)  # ✅ Full Name
+    contact_number = Column(String(15), nullable=False)  # ✅ Contact Number
     address_line = Column(String(255), nullable=False)
-    landmark = Column(String(100), nullable=True)               # ✅ Added landmark
+    landmark = Column(String(100), nullable=True)  # ✅ Landmark
     city = Column(String(50), nullable=False)
     state = Column(String(50), nullable=False)
-    pincode = Column(String(10), nullable=False)                # ✅ Renamed from postal_code
+    pincode = Column(String(10), nullable=False)  # ✅ Pincode
     is_default = Column(Boolean, default=False)
 
     # Relationships
-    user = relationship("User", back_populates="addresses")
+    user = relationship("UniversalUser", back_populates="addresses")
 
 # ✅ Coupon Model
 class Coupon(Base):
@@ -193,8 +181,8 @@ class Coupon(Base):
     id = Column(Integer, primary_key=True, index=True)
     code = Column(String(50), unique=True, nullable=False)
     discount_percentage = Column(Float, nullable=False)
-    max_discount = Column(Float, nullable=False, default=100.0)  # ✅ Add this field
-    usage_limit = Column(Enum(UsageLimit), nullable=False, default=UsageLimit.one_time)  # Enum field
+    max_discount = Column(Float, nullable=False, default=100.0)  # ✅ Max Discount
+    usage_limit = Column(Enum(UsageLimit), nullable=False, default=UsageLimit.one_time)
     minimum_order_amount = Column(Float, nullable=False, default=0.0)
     is_active = Column(Boolean, default=True)
     created_at = Column(DateTime, default=datetime.utcnow)
@@ -208,15 +196,15 @@ class CouponUsage(Base):
     __tablename__ = "coupon_usages"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
+    user_id = Column(Integer, ForeignKey("universal_users.id"), nullable=False)
     coupon_id = Column(Integer, ForeignKey("coupons.id"), nullable=False)
-    used_at = Column(DateTime, default=datetime.utcnow, nullable=False)  # Usage timestamp
+    used_at = Column(DateTime, default=datetime.utcnow, nullable=False)
 
     # Relationships
-    user = relationship("User", back_populates="coupon_usages")
-    coupon = relationship("Coupon", back_populates="usages")
+    user = relationship("UniversalUser")
+    coupon = relationship("Coupon")
 
-    # ✅ Ensure a user can’t use the same coupon multiple times (for one-time use)
+    # ✅ Ensure unique coupon usage constraints
     __table_args__ = (
         UniqueConstraint("user_id", "coupon_id", name="_user_coupon_uc"),
     )
@@ -234,19 +222,18 @@ class Order(Base):
     __tablename__ = "orders"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, ForeignKey("users.id"), nullable=False)
-    ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)  # ✅ Ensure this exists
     total_amount = Column(Float, nullable=False)
-    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False)  # ✅ Add this if missing
-    status = Column(Enum(OrderStatus), default=OrderStatus.pending, nullable=False)
-    razorpay_order_id = Column(String(100), nullable=True)  # ✅ Add this line
-    payment_id = Column(String(255), nullable=True)  # ✅ Add this line
+    address_id = Column(Integer, ForeignKey("addresses.id"), nullable=False)
+    razorpay_order_id = Column(String(100), nullable=True)  # ✅ Razorpay Order ID
+    payment_id = Column(String(255), nullable=True)  # ✅ Payment ID
     created_at = Column(DateTime, default=datetime.utcnow)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
-    user = relationship("User")
-    ngo = relationship("NGO")
+    # Relationships
+    user = relationship("UniversalUser", back_populates="orders")  # ✅ Ensure relationship is defined
     order_items = relationship("OrderItem", back_populates="order", cascade="all, delete-orphan")
+
 
 
 class OrderItem(Base):
@@ -255,13 +242,17 @@ class OrderItem(Base):
     id = Column(Integer, primary_key=True, index=True)
     order_id = Column(Integer, ForeignKey("orders.id"), nullable=False)
     product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
-    ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)  # ✅ Track which NGO the product belongs to
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
+    status = Column(Enum("Pending", "Processing", "Shipped", "Delivered", "Cancelled", name="order_status"), default="Pending")
+    
+    # ✅ Add timestamps
+    created_at = Column(DateTime, default=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product")
-    ngo = relationship("NGO")
+
 
 
 class Category(Base):
@@ -271,14 +262,21 @@ class Category(Base):
     name = Column(String(100), unique=True, nullable=False)       # Added length
     description = Column(String(255), nullable=True)              # Added length
     is_approved = Column(Boolean, default=False)
-    ngo_id = Column(Integer, ForeignKey("ngos.id"), nullable=False)  # Link to NGO
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)
 
-    ngo = relationship("NGO", back_populates="categories")
+    # ✅ Relationship to UniversalUser
+    creator = relationship("UniversalUser", back_populates="categories", foreign_keys=[universal_user_id])
+    products = relationship("Product", back_populates="category", cascade="all, delete-orphan")  # 🔄 Added
 
 class PasswordResetToken(Base):
     __tablename__ = "password_reset_tokens"
 
     id = Column(Integer, primary_key=True, index=True)
-    user_id = Column(Integer, nullable=False)
-    token = Column(String, nullable=False, unique=True, index=True)
+    user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)  # ✅ Updated ForeignKey
+    token = Column(String(255), nullable=False, unique=True, index=True)
     expires_at = Column(DateTime, nullable=False, default=lambda: datetime.utcnow() + timedelta(minutes=30))
+
+    # Relationship
+    user = relationship("UniversalUser", back_populates="password_reset_tokens")  # ✅ Added Relationship
+
+

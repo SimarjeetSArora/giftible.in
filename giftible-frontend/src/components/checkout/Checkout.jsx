@@ -9,7 +9,7 @@ import {
   initiateRazorpayPayment, verifyPayment, placeOrder
 } from "../../services/checkoutService";
 import AddressForm from "../../components/AddressForm";
-import CouponSelector from "../../components/CouponSelector";
+import CouponSelector from "../../pages/user/coupons/CouponSelector";
 
 function Checkout() {
   const [addresses, setAddresses] = useState([]);
@@ -26,7 +26,17 @@ function Checkout() {
       try {
         const addressesData = await fetchAddresses();
         setAddresses(addressesData);
-
+  
+        // ✅ Auto-select the default address when addresses are loaded
+        const defaultAddress = addressesData.find((address) => address.is_default);
+        if (defaultAddress) {
+          setSelectedAddress(defaultAddress.id);
+        } else if (addressesData.length > 0) {
+          // If no default address, select the first address as fallback
+          setSelectedAddress(addressesData[0].id);
+        }
+  
+        // ✅ Fetch cart summary
         const summary = await fetchCartSummary(appliedCoupon?.code);
         setCartSummary(summary);
         setGrandTotal(summary.final_total + platformFee);
@@ -34,9 +44,10 @@ function Checkout() {
         console.error("❌ Error loading data:", error);
       }
     };
+  
     loadData();
   }, [appliedCoupon, platformFee]);
-
+  
   const handleAddressSubmit = async (address) => {
     try {
       const response = await addAddress(address);
@@ -113,62 +124,98 @@ function Checkout() {
 
       {/* 🏠 Address Selection */}
       <Box mt={4}>
-        <Typography variant="h6" sx={{ color: "#1B1B1B" }}>Select Address</Typography>
-        <Grid container spacing={3} mt={2}>
-          {addresses.map((address) => (
-            <Grid item xs={12} sm={6} key={address.id}>
-              <Card
+  <Typography variant="h6" sx={{ color: "#1B1B1B" }}>Select Address</Typography>
+  <Grid container spacing={3} mt={2}>
+    {addresses.map((address) => (
+      <Grid item xs={12} sm={6} key={address.id}>
+        <Card
+          sx={{
+            border: selectedAddress === address.id ? "2px solid #F5B800" : "1px solid #ccc",
+            bgcolor: selectedAddress === address.id ? "#F5F5F5" : "#FFFFFF",
+            height: "190px",
+            cursor: "pointer",
+            position: "relative"
+          }}
+          onClick={() => setSelectedAddress(address.id)}
+        >
+          <CardContent>
+            <Box display="flex" alignItems="center" mb={1}>
+              <LocationOn sx={{ color: "#6A4C93" }} />
+              <Typography variant="subtitle1" ml={1} fontWeight="bold">{address.full_name}</Typography>
+            </Box>
+            <Typography variant="body2">{address.contact_number}</Typography>
+            <Typography variant="body2">{address.address_line}</Typography>
+            <Typography variant="body2">{`${address.city}, ${address.state} - ${address.pincode}`}</Typography>
+            {address.landmark && <Typography variant="body2">Landmark: {address.landmark}</Typography>}
+
+            {/* ⭐ Default Address Tag at the Bottom Right */}
+            {address.is_default && (
+              <Typography
+                variant="caption"
                 sx={{
-                  border: selectedAddress === address.id ? "2px solid #F5B800" : "1px solid #ccc",
-                  bgcolor: selectedAddress === address.id ? "#F5F5F5" : "#FFFFFF",
-                  height: "190px", cursor: "pointer",
+                  position: "absolute",
+                  bottom: 5,
+                  right: 10,
+                  bgcolor: "#F5B800",
+                  color: "#1B1B1B",
+                  px: 1,
+                  py: 0.5,
+                  fontWeight: "bold",
+                  borderRadius: "5px",
                 }}
-                onClick={() => setSelectedAddress(address.id)}
               >
-                <CardContent>
-                  <Box display="flex" alignItems="center" mb={1}>
-                    <LocationOn sx={{ color: "#6A4C93" }} />
-                    <Typography variant="subtitle1" ml={1} fontWeight="bold">{address.full_name}</Typography>
-                  </Box>
-                  <Typography variant="body2">{address.contact_number}</Typography>
-                  <Typography variant="body2">{address.address_line}</Typography>
-                  <Typography variant="body2">{`${address.city}, ${address.state} - ${address.pincode}`}</Typography>
-                  {address.landmark && <Typography variant="body2">Landmark: {address.landmark}</Typography>}
-                </CardContent>
-              </Card>
-            </Grid>
-          ))}
+                Default Address
+              </Typography>
+            )}
+          </CardContent>
+        </Card>
+      </Grid>
+    ))}
 
-          {/* ➕ Add New Address */}
-          <Grid item xs={12} sm={6}>
-            <Card
-              sx={{
-                border: "2px dashed #6A4C93",
-                height: "190px", display: "flex", justifyContent: "center",
-                alignItems: "center", cursor: "pointer",
-              }}
-              onClick={() => setShowAddressForm(true)}
-            >
-              <CardContent sx={{ textAlign: "center" }}>
-                <IconButton sx={{ color: "#6A4C93" }}><AddCircle fontSize="large" /></IconButton>
-                <Typography>Add New Address</Typography>
-              </CardContent>
-            </Card>
-          </Grid>
-        </Grid>
+    {/* ➕ Add New Address */}
+    <Grid item xs={12} sm={6}>
+      <Card
+        sx={{
+          border: "2px dashed #6A4C93",
+          height: "190px",
+          display: "flex",
+          justifyContent: "center",
+          alignItems: "center",
+          cursor: "pointer",
+        }}
+        onClick={() => setShowAddressForm(true)}
+      >
+        <CardContent sx={{ textAlign: "center" }}>
+          <IconButton sx={{ color: "#6A4C93" }}>
+            <AddCircle fontSize="large" />
+          </IconButton>
+          <Typography>Add New Address</Typography>
+        </CardContent>
+      </Card>
+    </Grid>
+  </Grid>
 
-        <Modal open={showAddressForm} onClose={() => setShowAddressForm(false)}>
-          <Box sx={{
-            position: "absolute", top: "50%", left: "50%",
-            transform: "translate(-50%, -50%)", width: 400,
-            bgcolor: "background.paper", borderRadius: "12px", p: 3,
-          }}>
-            <AddressForm onSubmit={handleAddressSubmit} onCancel={() => setShowAddressForm(false)} />
-          </Box>
-        </Modal>
-      </Box>
+  {/* Address Form Modal */}
+  <Modal open={showAddressForm} onClose={() => setShowAddressForm(false)}>
+    <Box
+      sx={{
+        position: "absolute",
+        top: "50%",
+        left: "50%",
+        transform: "translate(-50%, -50%)",
+        width: 400,
+        bgcolor: "background.paper",
+        borderRadius: "12px",
+        p: 3,
+      }}
+    >
+      <AddressForm onSubmit={handleAddressSubmit} onCancel={() => setShowAddressForm(false)} />
+    </Box>
+  </Modal>
+</Box>
 
-      <Divider sx={{ my: 4 }} />
+<Divider sx={{ my: 4 }} />
+
 
       {/* 🎟️ Coupon Section */}
       <CouponSelector

@@ -3,13 +3,13 @@ import React, { createContext, useContext, useState, useEffect } from "react";
 const AuthContext = createContext();
 
 export const AuthProvider = ({ children }) => {
-  const [authRole, setAuthRole] = useState(localStorage.getItem("authRole") || null);
+  const [authRole, setAuthRole] = useState(() => sessionStorage.getItem("authRole") || null);
 
   useEffect(() => {
     if (authRole) {
-      localStorage.setItem("authRole", authRole);
+      sessionStorage.setItem("authRole", authRole); // ✅ Store role properly
     } else {
-      localStorage.removeItem("authRole");
+      sessionStorage.removeItem("authRole");
     }
   }, [authRole]);
 

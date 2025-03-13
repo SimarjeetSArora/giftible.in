@@ -362,7 +362,7 @@ const Homepage = () => {
 
     <Grid container spacing={4} justifyContent="center">
       {topNGOs.map(({ id, ngo_name, logo }) => {
-        const imageUrl = logo ? `${API_BASE_URL}/${logo}` : "https://via.placeholder.com/150";
+        const imageUrl = logo ? `${API_BASE_URL}${logo}` : "https://via.placeholder.com/150";
 
         return (
           <Grid item xs={6} sm={4} md={2} key={id} sx={{ textAlign: "center" }}>

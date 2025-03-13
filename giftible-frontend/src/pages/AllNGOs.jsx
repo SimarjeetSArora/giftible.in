@@ -1,6 +1,6 @@
 // src/pages/AllNGOs.jsx
 import React, { useEffect, useState } from "react";
-import { Container, Grid, Typography, Box, Button } from "@mui/material";
+import { Container, Grid, Typography, Box, Avatar, CircularProgress } from "@mui/material";
 import { Link } from "react-router-dom";
 import { fetchAllNGOs } from "../services/ngoService";
 import API_BASE_URL from "../config";
@@ -9,14 +9,18 @@ const placeholderImage = "https://via.placeholder.com/150";
 
 const AllNGOs = () => {
   const [ngos, setNgos] = useState([]);
+  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const loadNGOs = async () => {
       try {
-        const data = await fetchAllNGOs();
-        setNgos(data); // Expected response: [{ id, ngo_name, logo }]
+        setLoading(true);
+        const data = await fetchAllNGOs(); // ✅ Expected response: [{ id, ngo_name, logo }]
+        setNgos(data || []);
       } catch (error) {
         console.error("Failed to fetch NGOs:", error);
+      } finally {
+        setLoading(false);
       }
     };
 
@@ -29,7 +33,12 @@ const AllNGOs = () => {
         All NGOs
       </Typography>
 
-      {ngos.length === 0 ? (
+      {loading ? (
+        <Box sx={{ textAlign: "center", mt: 5 }}>
+          <CircularProgress />
+          <Typography variant="h6" mt={2}>Loading NGOs...</Typography>
+        </Box>
+      ) : ngos.length === 0 ? (
         <Typography textAlign="center">No NGOs found.</Typography>
       ) : (
         <Grid container spacing={4} justifyContent="center">
@@ -40,35 +49,40 @@ const AllNGOs = () => {
               <Grid item xs={6} sm={4} md={3} key={id} sx={{ textAlign: "center" }}>
                 <Link to={`/ngos/${id}/products`} style={{ textDecoration: "none", color: "inherit" }}>
                   <Box
-                    component="img"
-                    src={imageUrl}
-                    alt={ngo_name}
                     sx={{
-                      width: "150px",
-                      height: "150px",
-                      objectFit: "cover",
-                      borderRadius: "8px",
-                      mb: 1,
-                      boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.15)",
-                      transition: "transform 0.2s",
-                      "&:hover": {
-                        transform: "scale(1.05)",
-                      },
-                    }}
-                  />
-                  <Typography
-                    variant="subtitle1"
-                    fontWeight="bold"
-                    sx={{
-                      overflow: "hidden",
-                      textOverflow: "ellipsis",
-                      whiteSpace: "nowrap",
-                      maxWidth: "150px",
-                      mx: "auto",
+                      display: "flex",
+                      flexDirection: "column",
+                      alignItems: "center",
+                      textAlign: "center",
+                      cursor: "pointer",
+                      transition: "transform 0.2s ease",
+                      "&:hover": { transform: "scale(1.05)" },
                     }}
                   >
-                    {ngo_name}
-                  </Typography>
+                    <Avatar
+                      src={imageUrl}
+                      alt={ngo_name}
+                      sx={{
+                        width: 100,
+                        height: 100,
+                        mb: 1,
+                        boxShadow: "0px 3px 6px rgba(0, 0, 0, 0.15)",
+                      }}
+                    />
+                    <Typography
+                      variant="subtitle1"
+                      fontWeight="bold"
+                      sx={{
+                        overflow: "hidden",
+                        textOverflow: "ellipsis",
+                        whiteSpace: "nowrap",
+                        maxWidth: "150px",
+                        mx: "auto",
+                      }}
+                    >
+                      {ngo_name}
+                    </Typography>
+                  </Box>
                 </Link>
               </Grid>
             );

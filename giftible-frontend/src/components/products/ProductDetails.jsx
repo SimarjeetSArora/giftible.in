@@ -14,54 +14,81 @@ import {
   Alert,
 } from "@mui/material";
 import API_BASE_URL from "../../config";
-import { addToCart, fetchCartCount  } from "../../services/cartService";
+import { addToCart, fetchCartCount } from "../../services/cartService";
+
+import { addToWishlist, removeFromWishlist, fetchWishlist } from "../../services/wishlistService";
+import FavoriteIcon from "@mui/icons-material/Favorite";
+import FavoriteBorderIcon from "@mui/icons-material/FavoriteBorder";
+
 
 function ProductDetails() {
   const { productId } = useParams();
   const navigate = useNavigate();
   const [product, setProduct] = useState(null);
   const [selectedImage, setSelectedImage] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [snackbarOpen, setSnackbarOpen] = useState(false); // ✅ Snackbar visibility state
+  const [userId, setUserId] = useState(null); // ✅ Use userId for login check
+  const [snackbarOpen, setSnackbarOpen] = useState(false);
+  const [isWishlisted, setIsWishlisted] = useState(false); // ✅ Wishlist state
+
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const response = await axiosInstance.get(`${API_BASE_URL}/products/${productId}`);
-        setProduct(response.data);
-        setSelectedImage(response.data.images[0]?.image_url);
+        const productData = response.data;
+  
+        if (!productData || !productData.product) {
+          throw new Error("Invalid product response from server.");
+        }
+  
+        setProduct(productData);
+        setSelectedImage(productData.product.images?.[0]?.image_url || "");
       } catch (error) {
         console.error("Error fetching product details:", error);
+        setProduct(null);
       }
     };
-
+  
+    const checkWishlist = async (userId) => {
+      if (!userId) return; // ✅ Skip wishlist check if user is not logged in
+  
+      try {
+        const wishlist = await fetchWishlist();
+        setIsWishlisted(wishlist.some((item) => item.product_id === parseInt(productId)));
+      } catch (error) {
+        console.error("Error fetching wishlist:", error);
+      }
+    };
+  
     fetchProduct();
-
-    const token = localStorage.getItem("token");
-    setIsLoggedIn(!!token); // ✅ Check login status
+  
+    // ✅ Fetch userId from localStorage to check login status
+    const storedUser = JSON.parse(localStorage.getItem("user"));
+    setUserId(storedUser?.id || null);
+  
+    if (storedUser?.id) {
+      checkWishlist(storedUser.id);
+    }
   }, [productId]);
+  
 
   const handleSnackbarClose = () => {
     setSnackbarOpen(false);
   };
 
   const handleLoginPrompt = () => {
-    setSnackbarOpen(true); // Show Snackbar
+    setSnackbarOpen(true);
   };
 
-
-
   const handleAddToCart = async () => {
-    if (!isLoggedIn) {
+    if (!userId) {
       handleLoginPrompt();
       return;
     }
-  
+
     try {
-      await addToCart(product.id, 1); // ✅ Add item to server-side cart
-      setSnackbarOpen(true); // 🎉 Show success message
-  
-      const userId = JSON.parse(localStorage.getItem("user"))?.id;
+      await addToCart(product.product.id, 1);
+      
       if (userId) {
         const updatedCount = await fetchCartCount(userId);
         window.dispatchEvent(new CustomEvent("cartUpdated", { detail: { count: updatedCount } }));
@@ -71,15 +98,34 @@ function ProductDetails() {
     }
   };
 
-
   const handleBuyNow = () => {
-    if (!isLoggedIn) {
+    if (!userId) {
       handleLoginPrompt();
       return;
     }
 
     navigate("/checkout", { state: { product, quantity: 1 } });
   };
+
+  const handleWishlistToggle = async () => {
+    if (!userId) return handleLoginPrompt(); // ✅ Ask user to log in if not logged in
+  
+    try {
+      if (isWishlisted) {
+        await removeFromWishlist(product.product.id);
+        setIsWishlisted(false);
+        setSnackbar({ open: true, message: "Removed from wishlist", severity: "info" });
+      } else {
+        await addToWishlist(product.product.id);
+        setIsWishlisted(true);
+        setSnackbar({ open: true, message: "Added to wishlist", severity: "success" });
+      }
+    } catch (error) {
+      console.error("Wishlist action failed:", error);
+      setSnackbar({ open: true, message: "Error updating wishlist", severity: "error" });
+    }
+  };
+  
 
   if (!product) return <Typography>Loading product details...</Typography>;
 
@@ -89,38 +135,47 @@ function ProductDetails() {
         <Grid container spacing={4}>
           {/* 🖼️ Product Images */}
           <Grid item xs={12} md={6}>
-            <img
-              src={`${API_BASE_URL}/${selectedImage}`}
-              alt={product.name}
-              width="100%"
-              style={{ borderRadius: "8px" }}
-            />
+            {selectedImage ? (
+              <img
+                src={`${API_BASE_URL}/${selectedImage}`}
+                alt={product.product.name}
+                width="100%"
+                style={{ borderRadius: "8px" }}
+              />
+            ) : (
+              <Typography>No Image Available</Typography>
+            )}
+
             <Grid container spacing={2} mt={2}>
-              {product.images.map((img, index) => (
-                <Grid item xs={4} key={index}>
-                  <img
-                    src={`${API_BASE_URL}/${img.image_url}`}
-                    alt={`Product ${index + 1}`}
-                    width="100%"
-                    style={{
-                      border: selectedImage === img.image_url ? "2px solid #1976d2" : "1px solid #ccc",
-                      cursor: "pointer",
-                      borderRadius: "4px",
-                    }}
-                    onClick={() => setSelectedImage(img.image_url)}
-                  />
-                </Grid>
-              ))}
+              {Array.isArray(product.product.images) && product.product.images.length > 0 ? (
+                product.product.images.map((img, index) => (
+                  <Grid item xs={4} key={index}>
+                    <img
+                      src={`${API_BASE_URL}/${img.image_url}`}
+                      alt={`Product ${index + 1}`}
+                      width="100%"
+                      style={{
+                        border: selectedImage === img.image_url ? "2px solid #1976d2" : "1px solid #ccc",
+                        cursor: "pointer",
+                        borderRadius: "4px",
+                      }}
+                      onClick={() => setSelectedImage(img.image_url)}
+                    />
+                  </Grid>
+                ))
+              ) : (
+                <Typography>No images available</Typography>
+              )}
             </Grid>
           </Grid>
 
-          {/* 📝 Product & NGO Details */}
+          {/* 📝 Product, Category & NGO Details */}
           <Grid item xs={12} md={6}>
-            <Typography variant="h4" gutterBottom>{product.name}</Typography>
-            <Typography variant="h6" color="primary" gutterBottom>₹{product.price}</Typography>
-            <Typography variant="body1" gutterBottom>{product.description}</Typography>
-            <Typography variant="body2" color={product.stock > 0 ? "green" : "red"}>
-              {product.stock > 0 ? `In stock: ${product.stock}` : "Out of stock"}
+            <Typography variant="h4" gutterBottom>{product.product.name}</Typography>
+            <Typography variant="h6" color="primary" gutterBottom>₹{product.product.price}</Typography>
+            <Typography variant="body1" gutterBottom>{product.product.description}</Typography>
+            <Typography variant="body2" color={product.product.stock > 0 ? "green" : "red"}>
+              {product.product.stock > 0 ? `In stock: ${product.product.stock}` : "Out of stock"}
             </Typography>
 
             {/* 🛒 Action Buttons */}
@@ -131,7 +186,7 @@ function ProductDetails() {
                 fullWidth
                 sx={{ mb: 2 }}
                 onClick={handleAddToCart}
-                disabled={product.stock <= 0}
+                disabled={product.product.stock <= 0}
               >
                 Add to Cart
               </Button>
@@ -140,11 +195,31 @@ function ProductDetails() {
                 color="secondary"
                 fullWidth
                 onClick={handleBuyNow}
-                disabled={product.stock <= 0}
+                disabled={product.product.stock <= 0}
               >
                 Buy Now
               </Button>
+              {/* ❤️ Wishlist Button */}
+<Button
+  variant="text"
+  color="error"
+  fullWidth
+  onClick={handleWishlistToggle}
+  sx={{ mt: 2 }}
+  startIcon={isWishlisted ? <FavoriteIcon /> : <FavoriteBorderIcon />}
+>
+  {isWishlisted ? "Remove from Wishlist" : "Add to Wishlist"}
+</Button>
+
             </Box>
+
+            {/* 📂 Category Information */}
+            {product.category && (
+              <Paper elevation={3} sx={{ mt: 4, p: 2 }}>
+                <Typography variant="h6" gutterBottom>Category: {product.category.name}</Typography>
+                <Typography variant="body2">{product.category.description || "No description available"}</Typography>
+              </Paper>
+            )}
 
             {/* 🏢 NGO Information */}
             {product.ngo && (
@@ -165,7 +240,7 @@ function ProductDetails() {
         </Grid>
       </Box>
 
-      {/* ✅ Snackbar for Login Prompt */}
+      {/* ✅ Snackbar for Login Prompt (Shows Only When Not Logged In) */}
       <Snackbar
         open={snackbarOpen}
         autoHideDuration={4000}

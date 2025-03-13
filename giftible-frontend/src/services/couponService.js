@@ -1,28 +1,36 @@
 import axiosInstance from "./axiosInstance";
 import API_BASE_URL from "../config";
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => localStorage.getItem("access_token");
+
 
 export const createCoupon = async (couponData) => {
-    const token = localStorage.getItem("token");
-    if (!token) throw new Error("Token not found.");
-  
-    const response = await axiosInstance.post(`${API_BASE_URL}/checkout/create-coupon`, couponData, {
-      headers: {
-        Authorization: `Bearer ${token}`,
-        "Content-Type": "application/json",
-      },
-    });
-  
-    return response.data;
-  };
+  return axiosInstance.post(`${API_BASE_URL}/checkout/create-coupon`, {
+    code: couponData.code,
+    discount_percentage: parseFloat(couponData.discount_percentage),
+    max_discount: parseFloat(couponData.max_discount),
+    usage_limit: couponData.usage_limit,
+    minimum_order_amount: parseFloat(couponData.minimum_order_amount),
+    is_active: couponData.is_active,
+  });
+};
+
 
 
 export const fetchCoupons = async () => {
-  const response = await axiosInstance.get(`${API_BASE_URL}/checkout/coupons`, {
-    headers: { Authorization: `Bearer ${getToken()}` },
-  });
-  return response.data;
+  try {
+    const response = await axiosInstance.get(`${API_BASE_URL}/checkout/coupons`, {
+      headers: { Authorization: `Bearer ${getToken()}` },
+    });
+    return response.data;
+  } catch (error) {
+    if (error.response?.status === 401) {
+      console.error("🔑 Token expired. Redirecting to login.");
+      localStorage.removeItem("access_token");
+      window.location.href = "/login";  // ✅ Redirect to login on token expiration
+    }
+    throw error.response?.data?.detail || "Error fetching coupons.";
+  }
 };
 
 export const applyCoupon = async (code) => {

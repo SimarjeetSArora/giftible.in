@@ -13,16 +13,61 @@ function NGODashboard() {
         <Typography variant="h4" gutterBottom>
           NGO Dashboard
         </Typography>
-        <Button variant="contained" color="primary" fullWidth sx={{ mb: 2 }} onClick={() => navigate("/ngo/products/add")}>
+
+        {/* Product Management Section */}
+        <Typography variant="h6" mt={2} gutterBottom>
+          Product Management
+        </Typography>
+        <Button
+          variant="contained"
+          color="primary"
+          fullWidth
+          sx={{ mb: 2 }}
+          onClick={() => navigate("/ngo/products/add")}
+        >
           Add Product
         </Button>
-        <Button variant="contained" color="secondary" fullWidth onClick={() => navigate("/ngo/products/manage")}>
+        <Button
+          variant="contained"
+          color="secondary"
+          fullWidth
+          sx={{ mb: 2 }}
+          onClick={() => navigate("/ngo/products/manage")}
+        >
           Manage Products
         </Button>
-        <Button component={Link} to="/dashboard/ngo/orders" variant="contained">
-  Manage Orders
-</Button>
 
+        {/* Order Management */}
+        <Typography variant="h6" mt={2} gutterBottom>
+          Order Management
+        </Typography>
+        <Button component={Link} to="/dashboard/ngo/orders" variant="contained" fullWidth sx={{ mb: 2 }}>
+          Manage Orders
+        </Button>
+
+        {/* Category Management Section */}
+        <Typography variant="h6" mt={2} gutterBottom>
+          Category Management
+        </Typography>
+        <Button
+          variant="contained"
+          color="success"
+          fullWidth
+          sx={{ mb: 2 }}
+          onClick={() => navigate("/ngo/categories")}
+        >
+          Add Category
+        </Button>
+        <Button
+          variant="contained"
+          color="info"
+          fullWidth
+          onClick={() => navigate("/ngo/categories/manage")}
+        >
+          Manage Categories
+        </Button>
+
+        {/* Logout Button */}
         <LogoutButton />
       </Box>
     </Container>

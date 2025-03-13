@@ -50,7 +50,7 @@ function LogoutButton({ closeMenu }) {
     <>
       {/* 🚪 Logout Menu Item */}
       <MenuItem onClick={handleLogout}>
-        <ListItemIcon><Logout /></ListItemIcon>
+        <ListItemIcon><Logout sx={{ color: "#F5B800" }}/></ListItemIcon>
         <ListItemText primary="Logout" />
       </MenuItem>
 

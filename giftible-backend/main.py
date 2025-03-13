@@ -5,10 +5,7 @@ from routes import auth  # Import the auth routes
 from fastapi.middleware.cors import CORSMiddleware
 from routes import admin  # Import the new admin routes
 from fastapi.staticfiles import StaticFiles
-from routes import product, cart, checkout, order, payment, ngo
-from routes import category
-from routes import search
-
+from routes import product, cart, checkout, order, payment, ngo, category, search, address, user, admin, wishlist
 
 
 app = FastAPI()
@@ -20,17 +17,23 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+app.include_router(auth.router)
+app.include_router(admin.router)
+app.include_router(category.router)
+app.include_router(product.router)
+
 
 app.include_router(checkout.router)
-app.include_router(product.router)
 app.include_router(cart.router)
+app.include_router(wishlist.router)
+
 app.include_router(order.router)
 app.include_router(payment.router)
 app.include_router(ngo.router)
-app.include_router(category.router)
 app.include_router(search.router)
-
-app.include_router(admin.router, prefix="/admin", tags=["Admin"])
+app.include_router(address.router)
+app.include_router(user.router)
+app.include_router(admin.router)
 
 app.mount("/uploads", StaticFiles(directory="uploads"), name="uploads")
 

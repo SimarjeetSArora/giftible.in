@@ -1,41 +1,55 @@
-// src/pages/NGOProducts.jsx
 import React, { useEffect, useState } from "react";
-import { useParams, Link } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { Container, Grid, Typography, Card, CardContent, CardMedia, Box } from "@mui/material";
-import { fetchProductsByNGO } from "../services/ngoService";
+import { fetchProductsByUser } from "../services/ngoService";
 import API_BASE_URL from "../config";
 
 const placeholderImage = "https://via.placeholder.com/150";
 
 const NGOProducts = () => {
-  const { id } = useParams(); // Get NGO ID from URL
+  // ✅ Get Universal User ID from localStorage instead of useParams()
+  const storedUser = JSON.parse(localStorage.getItem("user"));
+  const universalUserId = storedUser?.id;
+
   const [products, setProducts] = useState([]);
-  const [ngoName, setNgoName] = useState("");
+  const [ngoDetails, setNgoDetails] = useState({ name: "", universal_user_id: "" });
 
   useEffect(() => {
     const loadProducts = async () => {
+      if (!universalUserId) {
+        console.error("❌ Universal User ID is missing");
+        return;
+      }
+
       try {
-        const { products, ngo_name } = await fetchProductsByNGO(id);
-        setProducts(products);
-        setNgoName(ngo_name);
+        console.log("📡 Fetching products for Universal User ID:", universalUserId); // 🔍 Debugging
+        const data = await fetchProductsByUser(universalUserId);
+        console.log("✅ API Response:", data);
+
+        if (data?.ngo) {
+          setNgoDetails({
+            name: data.ngo.ngo_name || "Unknown NGO",
+            universal_user_id: data.ngo.universal_user_id,
+          });
+        }
+
+        setProducts(data.products || []);
       } catch (error) {
-        console.error("Failed to fetch products:", error);
+        console.error("🚨 Failed to fetch products:", error);
       }
     };
 
     loadProducts();
-  }, [id]);
+  }, [universalUserId]); // ✅ Re-fetch if the user ID changes
 
   return (
     <Container sx={{ py: 6 }}>
-      {/* NGO Name Header */}
-      <Box sx={{ display: "flex", justifyContent: "center", mb: 6 }}>
-        <Typography variant="h4" fontWeight="bold" textAlign="center">
-          Products by {ngoName}
+      <Box sx={{ textAlign: "center", mb: 6 }}>
+        <Typography variant="h4" fontWeight="bold">
+          Products by {ngoDetails.name}
         </Typography>
       </Box>
 
-      {/* Products Section */}
       {products.length === 0 ? (
         <Typography textAlign="center">No products found for this NGO.</Typography>
       ) : (

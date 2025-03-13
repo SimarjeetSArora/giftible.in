@@ -1,11 +1,11 @@
 import axiosInstance from "./axiosInstance";
 import API_BASE_URL from "../config";
 
-const getToken = () => localStorage.getItem("token");
+const getToken = () => localStorage.getItem("access_token");
 
 // ✅ Fetch user addresses
 export const fetchAddresses = async () => {
-  const { data } = await axiosInstance.get(`${API_BASE_URL}/checkout/addresses`, {
+  const { data } = await axiosInstance.get(`${API_BASE_URL}/addresses/`, {
     headers: { Authorization: `Bearer ${getToken()}` },
   });
   return data;
@@ -13,7 +13,7 @@ export const fetchAddresses = async () => {
 
 // ✅ Add new address
 export const addAddress = async (addressData) => {
-  const { data } = await axiosInstance.post(`${API_BASE_URL}/checkout/address`, addressData, {
+  const { data } = await axiosInstance.post(`${API_BASE_URL}/addresses/`, addressData, {
     headers: { Authorization: `Bearer ${getToken()}`, "Content-Type": "application/json" },
   });
   return data;
