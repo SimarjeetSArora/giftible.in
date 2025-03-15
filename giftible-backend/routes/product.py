@@ -1,17 +1,18 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
-from models import Product, ProductImage, Category, UniversalUser, NGO
-from typing import List
+from models import Product, ProductImage, Category, UniversalUser, NGO, OrderItem
+from typing import List, Optional
 import shutil
 import os
-from datetime import datetime
+from datetime import datetime, timedelta
 from schemas import ProductResponse
 from fastapi.security import OAuth2PasswordBearer
 from jose import jwt, JWTError
 import os
 from dotenv import load_dotenv
-
+from sqlalchemy import or_, and_
+from sqlalchemy.sql.expression import func
 
 
 router = APIRouter(prefix="/products", tags=["Products"])
@@ -52,32 +53,41 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 @router.get("/browse", summary="Browse products with filters")
 def browse_products(
     status: str = Query("all", description="Filter by product status: all, approved, unapproved, live, unlive"),
-    ngo_id: int | None = Query(None, description="Filter by NGO ID"),
-    category_id: int | None = Query(None, description="Filter by Category ID"),
-    min_price: float | None = Query(None, description="Minimum Price"),
-    max_price: float | None = Query(None, description="Maximum Price"),
+    ngo_ids: List[int] = Query([], description="Filter by multiple NGO IDs"),
+    category_ids: List[int] = Query([], description="Filter by multiple Category IDs"),
+    min_price: Optional[float] = Query(None, description="Minimum Price"),
+    max_price: Optional[float] = Query(None, description="Maximum Price"),
+    start_date: Optional[str] = Query(None, description="Start date (YYYY-MM-DD)"),
+    end_date: Optional[str] = Query(None, description="End date (YYYY-MM-DD)"),
+    search_query: Optional[str] = Query(None, description="Search for products by name, description, or NGO name"),
+    limit: int = Query(10, description="Number of products per page"),
+    offset: int = Query(0, description="Pagination offset"),
+    randomize: bool = Query(False, description="Set to `true` to fetch products randomly"),
     db: Session = Depends(get_db),
 ):
     """
     🛍️ **Browse products with filtering options:**
     - `status=all` → Fetch all products
-    - `ngo_id=1` → Fetch products by NGO
-    - `category_id=3` → Fetch products by Category
-    - `min_price=100&max_price=500` → Price range
+    - `ngo_ids=1,2,3` → Fetch products by multiple NGOs
+    - `category_ids=3,4,5` → Fetch products by multiple Categories
+    - `min_price=100&max_price=500` → Price range filter
+    - `start_date=2024-01-01&end_date=2024-02-01` → Date range filter
+    - `search_query=bag` → Search products by name, description, or NGO name
+    - `randomize=true` → Fetch products randomly
     """
 
     query = (
         db.query(Product)
-        .join(UniversalUser, UniversalUser.id == Product.universal_user_id)  # 🔗 Join UniversalUser
-        .outerjoin(NGO, NGO.universal_user_id == UniversalUser.id)  # 🔗 Join NGO
+        .join(UniversalUser, UniversalUser.id == Product.universal_user_id)
+        .outerjoin(NGO, NGO.universal_user_id == UniversalUser.id)
         .options(
             joinedload(Product.images),
             joinedload(Product.category),
-            joinedload(Product.universal_user).joinedload(UniversalUser.ngo)  # ✅ Corrected NGO join
+            joinedload(Product.universal_user).joinedload(UniversalUser.ngo)
         )
     )
 
-    # ✅ Apply Filters
+    # ✅ Apply Status Filters
     if status == "approved":
         query = query.filter(Product.is_approved == True)
     elif status == "unapproved":
@@ -85,22 +95,60 @@ def browse_products(
     elif status == "live":
         query = query.filter(Product.is_approved == True, Product.is_live == True)
     elif status == "unlive":
-        query = query.filter(Product.is_approved == True, Product.is_live == False)
+        query = query.filter(Product.is_live == False)
 
-    if ngo_id:
-        query = query.filter(Product.universal_user_id == ngo_id)
-    if category_id:
-        query = query.filter(Product.category_id == category_id)
-    if min_price:
+    # ✅ Apply Multiple NGO Filters
+    if ngo_ids:
+        query = query.filter(Product.universal_user_id.in_(ngo_ids))
+
+    # ✅ Apply Multiple Category Filters
+    if category_ids:
+        query = query.filter(Product.category_id.in_(category_ids))
+
+    # ✅ Apply Price Range Filter
+    if min_price is not None:
         query = query.filter(Product.price >= min_price)
-    if max_price:
+    if max_price is not None:
         query = query.filter(Product.price <= max_price)
 
-    products = query.all()
+    # ✅ Apply Date Filter
+    try:
+        if start_date:
+            start_date_parsed = datetime.strptime(start_date, "%Y-%m-%d")
+            query = query.filter(Product.created_at >= start_date_parsed)
+
+        if end_date:
+            end_date_parsed = datetime.strptime(end_date, "%Y-%m-%d") + timedelta(hours=23, minutes=59, seconds=59)
+        else:
+            end_date_parsed = datetime.utcnow().replace(hour=23, minute=59, second=59)
+
+        query = query.filter(Product.created_at <= end_date_parsed)
+
+    except ValueError:
+        raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+
+    # 🔎 Apply Search Query
+    if search_query:
+        search_filter = or_(
+            Product.name.ilike(f"%{search_query}%"),
+            Product.description.ilike(f"%{search_query}%"),
+            NGO.ngo_name.ilike(f"%{search_query}%"),
+            UniversalUser.email.ilike(f"%{search_query}%")
+        )
+        query = query.filter(search_filter)
+
+    # ✅ Randomize results if `randomize=true`
+    if randomize:
+        query = query.order_by(func.random())
+
+    # ✅ Apply Pagination
+    total_count = query.count()
+    products = query.limit(limit).offset(offset).all()
 
     # ✅ Corrected response format with `universal_user_id`
     return {
         "message": "✅ Products fetched successfully" if products else "⚠️ No products found.",
+        "total": total_count,
         "products": [
             {
                 "id": product.id,
@@ -112,17 +160,21 @@ def browse_products(
                 "created_at": product.created_at.strftime("%Y-%m-%d"),
                 "category": {"id": product.category.id, "name": product.category.name} if product.category else None,
                 "ngo": {
-                    "id": product.universal_user.ngo.id if product.universal_user.ngo else None,  # ✅ Fetch NGO ID
-                    "universal_user_id": product.universal_user.id,  # ✅ Include universal_user_id
-                    "ngo_name": product.universal_user.ngo.ngo_name if product.universal_user.ngo else "No NGO",  # ✅ Fetch NGO Name
-                    "contact_number": product.universal_user.contact_number,  # ✅ Fetch NGO contact
-                    "email": product.universal_user.email,  # ✅ Fetch NGO email
+                    "id": product.universal_user.ngo.id if product.universal_user.ngo else None,
+                    "universal_user_id": product.universal_user.id,
+                    "ngo_name": product.universal_user.ngo.ngo_name if product.universal_user.ngo else "No NGO",
+                    "logo": product.universal_user.ngo.logo,
+                    "contact_number": product.universal_user.contact_number,
+                    "email": product.universal_user.email,
                 } if product.universal_user.ngo else None,
                 "images": [{"image_url": img.image_url} for img in product.images],
             }
             for product in products
         ]
     }
+
+
+
 
 
 
@@ -181,7 +233,7 @@ async def add_product(
     return {"message": "Product added. Awaiting admin approval."}
 
 # 🚀 Edit Product - NGOs can edit their product details
-@router.put("/edit/{product_id}", summary="NGO: Edit product details")
+@router.put("/edit/{product_id}", summary="NGO/Admin: Edit product details")
 def edit_product(
     product_id: int,
     category_id: int = Form(...),
@@ -192,32 +244,53 @@ def edit_product(
     db: Session = Depends(get_db),
     current_user: UniversalUser = Depends(get_current_user),
 ):
-    """NGOs can edit their products."""
-    if current_user.role != "ngo":
-        raise HTTPException(status_code=403, detail="Only NGOs can edit products.")
+    """NGOs can edit their own products, Admins can edit any product.
+       If an NGO edits a product, it must be reapproved by an admin.
+    """
 
-    product = db.query(Product).filter(Product.id == product_id, Product.universal_user_id == current_user.id).first()
+    # 🔍 Fetch the product
+    product = db.query(Product).filter(Product.id == product_id).first()
+
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found or unauthorized.")
+        raise HTTPException(status_code=404, detail="Product not found.")
 
+    # 🛡️ Permissions Check: NGOs can only edit their own products, Admins can edit any
+    if current_user.role == "ngo" and product.universal_user_id != current_user.id:
+        raise HTTPException(status_code=403, detail="Unauthorized. NGOs can only edit their own products.")
+
+    # ✅ Validate Category
     category = db.query(Category).filter(Category.id == category_id, Category.is_approved == True).first()
     if not category:
         raise HTTPException(status_code=400, detail="Invalid category or category not approved.")
 
+    # 📝 Update Product Details
     product.category_id = category_id
     product.name = name
     product.description = description
     product.price = price
     product.stock = stock
     product.updated_at = datetime.utcnow()
+
+    # 🚨 If the product is edited by an NGO, reset approval status to 0
+    if current_user.role == "ngo":
+        product.is_approved = False  # ✅ Reset approval status
+        product.is_live = False  # ✅ Reset approval status
+
     db.commit()
 
-    return {"message": f"Product '{product.name}' updated successfully."}
+    return {
+        "message": f"✅ Product '{product.name}' updated successfully.",
+        "is_approved": product.is_approved,
+        "is_live": product.is_live
+    }
+
+
 
 
 # ----------------------------- ADMIN ROUTES ----------------------------- #
 
 # 🚀 View Pending Products (Admin Only)
+
 @router.get("/pending", summary="Admin: View pending products")
 def get_pending_products(
     db: Session = Depends(get_db),
@@ -227,8 +300,23 @@ def get_pending_products(
     if current_user.role != "admin":
         raise HTTPException(status_code=403, detail="Only admins can view pending products.")
 
-    pending_products = db.query(Product).filter(Product.is_approved == False).all()
-    return pending_products
+    # ✅ Fetch products along with their images
+    pending_products = db.query(Product).options(joinedload(Product.images)).filter(Product.is_approved == False).all()
+    
+    # ✅ Convert SQLAlchemy objects to dictionaries for JSON response
+    return [
+        {
+            "id": product.id,
+            "name": product.name,
+            "description": product.description,
+            "price": product.price,
+            "stock": product.stock,
+            "is_approved": product.is_approved,
+            "images": [{"image_url": img.image_url} for img in product.images]  # ✅ Include images
+        }
+        for product in pending_products
+    ]
+
 
 
 # 🚀 Approve Product (Admin Only)
@@ -331,21 +419,25 @@ def make_product_unlive(
     return {"message": f"🚫 Product '{product.name}' is now unlive."}
 
 # 🚀 Get All Products by NGO (UniversalUser)
-@router.get("/my-products", summary="NGO: View all products added by the logged-in NGO")
-def get_products_by_ngo(
+@router.get("/my-products", summary="NGO: View all approved products added by the logged-in NGO")
+def get_approved_products_by_ngo(
     db: Session = Depends(get_db),
     current_user: UniversalUser = Depends(get_current_user),
 ):
-    """NGOs can fetch all their products along with their details."""
+    """NGOs can fetch all their approved products along with their details."""
 
     if current_user.role != "ngo":
         raise HTTPException(status_code=403, detail="Only NGOs can view their products.")
 
-    # Fetch all products added by the logged-in NGO
-    products = db.query(Product).filter(Product.universal_user_id == current_user.id).all()
+    # Fetch only approved products added by the logged-in NGO
+    approved_products = (
+        db.query(Product)
+        .filter(Product.universal_user_id == current_user.id, Product.is_approved == True)
+        .all()
+    )
 
     return {
-        "message": "✅ Products fetched successfully" if products else "⚠️ No products found.",
+        "message": "✅ Approved products fetched successfully" if approved_products else "⚠️ No approved products found.",
         "products": [
             {
                 "id": product.id,
@@ -362,9 +454,12 @@ def get_products_by_ngo(
                 } if product.category else None,
                 "images": [{"image_url": img.image_url} for img in product.images]
             }
-            for product in products
+            for product in approved_products
         ],
     }
+
+
+
 # 🚀 Delete Product - NGOs can delete their own products, Admins can delete any product
 @router.delete("/delete/{product_id}", summary="Admin/NGO: Delete a product")
 def delete_product(
@@ -378,11 +473,16 @@ def delete_product(
     product = db.query(Product).filter(Product.id == product_id).first()
 
     if not product:
-        raise HTTPException(status_code=404, detail="Product not found")
+        return {"message": "❌ Product not found"}
 
     # 🛡️ Check if the logged-in user has the right permissions
     if current_user.role != "admin" and product.universal_user_id != current_user.id:
-        raise HTTPException(status_code=403, detail="Unauthorized. You cannot delete this product.")
+        return {"message": "⛔ Unauthorized. You cannot delete this product."}
+
+    # 🚨 Check if product has active orders
+    existing_orders = db.query(OrderItem).filter(OrderItem.product_id == product_id).count()
+    if existing_orders > 0:
+        return {"message": "⚠️ Cannot delete this product because orders are already placed. Please complete or cancel orders before deleting."}
 
     # ✅ Delete associated product images from storage
     images = db.query(ProductImage).filter(ProductImage.product_id == product_id).all()
@@ -397,6 +497,7 @@ def delete_product(
 
     return {"message": f"✅ Product '{product.name}' deleted successfully."}
 
+
 @router.get("/{product_id}", summary="User: View product details")
 def get_product_details(
     product_id: int,
@@ -407,7 +508,7 @@ def get_product_details(
     # 🔍 Fetch the product
     product = (
         db.query(Product)
-        .filter(Product.id == product_id, Product.is_approved == True, Product.is_live == True)
+        .filter(Product.id == product_id)
         .first()
     )
 
@@ -433,7 +534,9 @@ def get_product_details(
     ngo = db.query(NGO).filter(NGO.universal_user_id == product.universal_user_id).first()
     ngo_details = {
         "id": ngo.id,
+        "universal_user_id": product.universal_user.id,  # ✅ Include universal_user_id
         "ngo_name": ngo.ngo_name,  # ✅ NGO name from `ngos` table
+        "logo": ngo.logo,
         "email": universal_user.email if universal_user else None,
         "contact_number": universal_user.contact_number if universal_user else None,
     } if ngo else None
@@ -446,6 +549,7 @@ def get_product_details(
             "price": product.price,
             "stock": product.stock,
             "is_live": product.is_live,
+            "is_approved": product.is_approved,
             "created_at": product.created_at,
             "updated_at": product.updated_at,
             "images": image_urls,

@@ -21,6 +21,25 @@ def edit_user_profile(
     db: Session = Depends(get_db),
     current_user: UniversalUser = Depends(get_current_user)
 ):
+    # ✅ Check for existing email (excluding current user)
+    if updated_data.email and updated_data.email != current_user.email:
+        existing_email = db.query(UniversalUser).filter(
+            UniversalUser.email == updated_data.email,
+            UniversalUser.id != current_user.id
+        ).first()
+        if existing_email:
+            raise HTTPException(status_code=400, detail="A user with this email already exists.")
+
+    # ✅ Check for existing contact number (excluding current user)
+    if updated_data.contact_number and updated_data.contact_number != current_user.contact_number:
+        existing_contact = db.query(UniversalUser).filter(
+            UniversalUser.contact_number == updated_data.contact_number,
+            UniversalUser.id != current_user.id
+        ).first()
+        if existing_contact:
+            raise HTTPException(status_code=400, detail="A user with this contact number already exists.")
+
+    # ✅ Update only unique details
     if updated_data.first_name:
         current_user.first_name = updated_data.first_name
     if updated_data.last_name:
@@ -34,6 +53,7 @@ def edit_user_profile(
     db.refresh(current_user)
 
     return current_user
+
 
 
 # ✅ Delete Account

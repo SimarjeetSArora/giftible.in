@@ -189,7 +189,7 @@ def get_approved_categories(db: Session = Depends(get_db)):
 
 # 🛡️ Admin: View all categories (approved & unapproved)
 
-@router.get("/all", response_model=dict, summary="Admin: Fetch all categories with search & pagination")
+@router.get("/all", response_model=dict, summary="Admin & NGO: Fetch categories with search & pagination")
 def get_all_categories(
     db: Session = Depends(get_db),
     current_user: UniversalUser = Depends(get_current_user),
@@ -198,20 +198,26 @@ def get_all_categories(
     search: str = Query(None, description="Search category by name or description"),
     filter: str = Query(None, description="Filter by approval status (approved/not_approved)"),
 ):
-    if current_user.role != "admin":
-        raise HTTPException(status_code=403, detail="Only admins can access this resource.")
+    """
+    Admins can fetch all categories (approved & unapproved).
+    NGOs can only fetch approved categories.
+    """
 
     query = db.query(Category)
 
-    # ✅ Apply search filter
+    # ✅ Apply search filter (Name or Description)
     if search:
         query = query.filter(Category.name.ilike(f"%{search}%") | Category.description.ilike(f"%{search}%"))
 
-    # ✅ Apply filter for approved/unapproved categories
-    if filter == "approved":
-        query = query.filter(Category.is_approved == True)
-    elif filter == "not_approved":
-        query = query.filter(Category.is_approved == False)
+    # ✅ Role-based filtering
+    if current_user.role == "ngo":
+        query = query.filter(Category.is_approved == True)  # NGOs can only see approved categories
+    elif current_user.role == "admin":
+        # Admins can filter both approved & unapproved categories
+        if filter == "approved":
+            query = query.filter(Category.is_approved == True)
+        elif filter == "not_approved":
+            query = query.filter(Category.is_approved == False)
 
     # ✅ Apply pagination
     total = query.count()
@@ -227,6 +233,7 @@ def get_all_categories(
         "limit": limit,
         "total_pages": (total // limit) + (1 if total % limit > 0 else 0)
     }
+
 
 
 

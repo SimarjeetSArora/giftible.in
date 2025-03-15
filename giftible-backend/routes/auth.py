@@ -342,7 +342,10 @@ def login_for_access_token(
         if not user.email_verified and not user.contact_verified:
             raise HTTPException(status_code=403, detail="Email or contact not verified. Please verify to continue.")
 
-        # ✅ If the user is an NGO, check if they are approved
+        # ✅ Initialize ngo_id as None (for non-NGO users)
+        ngo_id = None  
+
+        # ✅ If the user is an NGO, check if they are approved & fetch NGO ID
         if user.role == "ngo":
             ngo_profile = db.query(NGO).filter(NGO.universal_user_id == user.id).first()
             if not ngo_profile:
@@ -350,6 +353,8 @@ def login_for_access_token(
             
             if not ngo_profile.is_approved:
                 raise HTTPException(status_code=403, detail="NGO not approved yet. Please wait for admin approval.")
+            
+            ngo_id = ngo_profile.id  # ✅ Assign the NGO ID
 
         print("✅ Login successful!")
 
@@ -359,7 +364,8 @@ def login_for_access_token(
 
         save_refresh_token(db, user.id, refresh_token, refresh_expiry)
 
-        return {
+        # ✅ Construct the response payload
+        response_data = {
             "access_token": access_token,
             "refresh_token": refresh_token,
             "token_type": "bearer",
@@ -369,12 +375,19 @@ def login_for_access_token(
             "last_name": user.last_name
         }
 
+        # ✅ If the user is an NGO, include NGO ID in response
+        if ngo_id:
+            response_data["ngo_id"] = ngo_id
+
+        return response_data
+
     except HTTPException as http_err:
         raise http_err  # Directly return structured FastAPI errors
 
     except Exception as e:
         print(f"❌ Login error: {e}")
         raise HTTPException(status_code=500, detail="Internal server error.")
+
 
 
 

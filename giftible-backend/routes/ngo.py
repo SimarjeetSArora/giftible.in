@@ -1,44 +1,57 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
 from models import NGO, UniversalUser
-from schemas import NGOResponse, UserResponse, UserProfileUpdate
+from schemas import NGOResponse, UserResponse, UserProfileUpdate, PaginatedNGOResponse
 from .auth import get_current_user
 
 router = APIRouter(prefix="/ngo", tags=["NGO"])
 
-# ✅ Get All Approved NGOs
-@router.get("/approved", response_model=list[NGOResponse])
-def get_approved_ngos(db: Session = Depends(get_db)):
-    """Retrieve a list of all approved NGOs with relevant user details."""
-    
-    # ✅ Use a JOIN to fetch UniversalUser details in one query (more efficient)
+
+@router.get("/approved", response_model=PaginatedNGOResponse)  # ✅ Use new response model
+def get_approved_ngos(
+    db: Session = Depends(get_db),
+    limit: int = Query(10, ge=1),  # ✅ Limit for pagination
+    offset: int = Query(0, ge=0),  # ✅ Offset for pagination
+):
+    """Retrieve paginated list of approved NGOs with relevant details."""
+
+    # ✅ Get total count of approved NGOs
+    total_ngos = db.query(NGO).filter(NGO.is_approved == True).count()
+
     ngos = (
         db.query(NGO, UniversalUser)
         .join(UniversalUser, UniversalUser.id == NGO.universal_user_id)
         .filter(NGO.is_approved == True)
+        .limit(limit)
+        .offset(offset)
         .all()
     )
 
-    response = [
-        NGOResponse(
-            id=ngo.id,
-            ngo_name=ngo.ngo_name,
-            is_approved=ngo.is_approved,
-            logo=ngo.logo,
-            first_name=user.first_name,
-            last_name=user.last_name,
-            email=user.email,
-            contact_number=user.contact_number,
-            address=ngo.address,
-            city=ngo.city,
-            state=ngo.state,
-            pincode=ngo.pincode,
-        )
-        for ngo, user in ngos
-    ]
+    return {
+        "total": total_ngos,  # ✅ Pagination metadata
+        "limit": limit,
+        "offset": offset,
+        "ngos": [
+            NGOResponse(
+                id=ngo.id,
+                universal_user_id=ngo.universal_user_id,
+                ngo_name=ngo.ngo_name,
+                is_approved=ngo.is_approved,
+                logo=ngo.logo,
+                first_name=user.first_name,
+                last_name=user.last_name,
+                email=user.email,
+                contact_number=user.contact_number,
+                address=ngo.address,
+                city=ngo.city,
+                state=ngo.state,
+                pincode=ngo.pincode,
+            )
+            for ngo, user in ngos
+        ],
+    }
 
-    return response
 
 # ✅ Get NGO by ID
 @router.get("/{ngo_id}", response_model=NGOResponse)

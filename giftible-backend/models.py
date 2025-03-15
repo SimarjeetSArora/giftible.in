@@ -73,6 +73,8 @@ class UniversalUser(Base):
     products = relationship("Product", back_populates="universal_user", cascade="all, delete-orphan")  # 🔄 Updated
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")  # ✅ Ensure Orders Relationship Exists
     wishlist = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
+    payouts = relationship("Payout", back_populates="user", cascade="all, delete-orphan")
+
 
 class RefreshToken(Base):
     __tablename__ = "refresh_tokens"
@@ -212,7 +214,7 @@ class CouponUsage(Base):
 
 class OrderStatus(enum.Enum):
     pending = "Pending"
-    confirmed = "Confirmed"
+    processing = "Processing"
     shipped = "Shipped"
     delivered = "Delivered"
     cancelled = "Cancelled"
@@ -245,6 +247,7 @@ class OrderItem(Base):
     quantity = Column(Integer, nullable=False)
     price = Column(Float, nullable=False)
     status = Column(Enum("Pending", "Processing", "Shipped", "Delivered", "Cancelled", name="order_status"), default="Pending")
+    cancellation_reason = Column(String(255), nullable=True)
     
     # ✅ Add timestamps
     created_at = Column(DateTime, default=func.now())
@@ -252,6 +255,8 @@ class OrderItem(Base):
 
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product")
+
+
 
 
 
@@ -280,3 +285,15 @@ class PasswordResetToken(Base):
     user = relationship("UniversalUser", back_populates="password_reset_tokens")  # ✅ Added Relationship
 
 
+class Payout(Base):
+    __tablename__ = "payouts"
+
+    id = Column(Integer, primary_key=True, index=True)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id", ondelete="CASCADE"), nullable=False)  # ✅ Correct Column
+    amount = Column(Float, nullable=False)  # ✅ How much was requested
+    status = Column(String(20), nullable=False, default="Pending")  # ✅ Status: Pending, Completed, Rejected
+    created_at = Column(DateTime, default=datetime.utcnow, nullable=False)  # ✅ When the payout was requested
+    processed_at = Column(DateTime, nullable=True)  # ✅ When the payout was processed (Only for Completed)
+
+    # ✅ Relationship
+    user = relationship("UniversalUser", back_populates="payouts")
