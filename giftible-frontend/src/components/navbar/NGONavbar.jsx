@@ -88,22 +88,34 @@ const NGONavbar = ({ toggleSidebar }) => {
           </Button>
 
           <Menu
-            anchorEl={anchorEl}
-            open={Boolean(anchorEl)}
-            onClose={handleMenuClose}
-            sx={{ mt: 1 }}
-            anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
-            transformOrigin={{ vertical: "top", horizontal: "right" }}
-          >
-            <MenuItem onClick={handleMenuClose}>
-              <ListItemIcon>
-                <AccountCircle sx={{ color: "#6A4C93" }} />
-              </ListItemIcon>
-              <Typography>Manage Profile</Typography>
-            </MenuItem>
+  anchorEl={anchorEl}
+  open={Boolean(anchorEl)}
+  onClose={handleMenuClose}
+  sx={{
+    mt: 1,
+    "& .MuiPaper-root": { bgcolor: "#6A4C93", color: "white" }, // ✅ Updated Menu Color
+  }}
+  anchorOrigin={{ vertical: "bottom", horizontal: "right" }}
+  transformOrigin={{ vertical: "top", horizontal: "right" }}
+>
+  <MenuItem
+    onClick={() => {
+      handleMenuClose();
+      navigate("/ngo/profile"); // ✅ Navigate to NGO Profile
+    }}
+    sx={{
+      "&:hover": { bgcolor: "#5A3A83" }, // ✅ Darker Purple on Hover
+    }}
+  >
+    <ListItemIcon>
+      <AccountCircle sx={{ color: "white" }} /> {/* ✅ Updated Icon Color */}
+    </ListItemIcon>
+    <Typography sx={{ color: "white" }}>My Profile</Typography>
+  </MenuItem>
 
-            <LogoutButton />
-          </Menu>
+  <LogoutButton />
+</Menu>
+
         </Box>
       </Toolbar>
     </AppBar>

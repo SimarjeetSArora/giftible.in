@@ -26,14 +26,6 @@ const DefaultFooter = () => {
   const accentColor = "#F5B800";
   const secondaryColor = mode === "dark" ? "#A8A8A8" : "#FFFFFF";
 
-  const accessibilityFeatures = [
-    "High Contrast Mode",
-    "Screen Reader Support",
-    "Keyboard Navigation",
-    "Text Size Adjustment",
-    "Color Blind Friendly Palette",
-  ];
-
   const quickLinks = [
     { text: "Categories", path: "/categories" },
     { text: "NGOs", path: "/ngos" },
@@ -77,51 +69,33 @@ const DefaultFooter = () => {
           </Grid>
 
           {/* Quick Links */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="h6" gutterBottom sx={{ color: accentColor }}>
-              Quick Links
-            </Typography>
-            {quickLinks.map(({ text, path }) => (
-              <MuiLink
-                key={text}
-                onClick={() => handleNavigation(path)}
-                underline="hover"
-                sx={{
-                  cursor: "pointer",
-                  color: textColor,
-                  display: "block",
-                  mb: 0.5,
-                  "&:hover": { color: accentColor },
-                }}
-              >
-                {text}
-              </MuiLink>
-            ))}
-          </Grid>
+          <Grid item xs={12} sm={6} md={6}>
+  <Typography variant="h6" gutterBottom sx={{ color: accentColor }}>
+    Quick Links
+  </Typography>
 
-          {/* Accessibility Features */}
-          <Grid item xs={12} sm={6} md={3}>
-            <Typography variant="h6" gutterBottom sx={{ color: accentColor }}>
-              Accessibility Features
-            </Typography>
-            <List dense>
-              {accessibilityFeatures.map((feature) => (
-                <ListItem key={feature} disablePadding>
-                  <ListItemText
-                    primary={feature}
-                    primaryTypographyProps={{
-                      variant: "body2",
-                      sx: {
-                        color: textColor,
-                        "&:hover": { color: accentColor },
-                      },
-                    }}
-                  />
-                </ListItem>
-              ))}
-            </List>
-          </Grid>
+  <Grid container spacing={2}>
+    {quickLinks.map(({ text, path }, index) => (
+      <Grid item xs={3} key={text}> {/* ✅ Split into two equal columns */}
+        <MuiLink
+          onClick={() => handleNavigation(path)}
+          underline="hover"
+          sx={{
+            cursor: "pointer",
+            color: textColor,
+            display: "block",
+            "&:hover": { color: accentColor },
+          }}
+        >
+          {text}
+        </MuiLink>
+      </Grid>
+    ))}
+  </Grid>
+</Grid>
 
+
+          
           {/* Contact & Become a Seller */}
           <Grid item xs={12} md={3}>
             <Typography variant="h6" gutterBottom sx={{ color: accentColor }}>
@@ -145,25 +119,7 @@ const DefaultFooter = () => {
               Become a Seller
             </Button>
 
-            <Box display="flex" gap={1} justifyContent="center">
-              {[
-                { icon: <Facebook />, link: "https://facebook.com" },
-                { icon: <Twitter />, link: "https://twitter.com" },
-                { icon: <Instagram />, link: "https://instagram.com" },
-                { icon: <LinkedIn />, link: "https://linkedin.com" },
-              ].map(({ icon, link }) => (
-                <IconButton
-                  key={link}
-                  component="a"
-                  href={link}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  sx={{ color: textColor, "&:hover": { color: accentColor } }}
-                >
-                  {icon}
-                </IconButton>
-              ))}
-            </Box>
+            
           </Grid>
         </Grid>
 

@@ -10,7 +10,16 @@ export const fetchFeaturedProducts = async () => {
   return data;
 };
 
-export const fetchTopNGOs = async () => {
-  const { data } = await axiosInstance.get("/ngo/approved"); // Prefix with /api
-  return data;
+export const fetchTopNGOs = async (limit = 5, offset = 0) => {
+  try {
+    const { data } = await axiosInstance.get("/ngo/approved", {
+      params: { limit, offset }, // ✅ Send pagination params
+    });
+
+    return data;
+  } catch (error) {
+    console.error("❌ Error fetching top NGOs:", error);
+    return { total: 0, ngos: [] }; // ✅ Return empty data on failure
+  }
 };
+

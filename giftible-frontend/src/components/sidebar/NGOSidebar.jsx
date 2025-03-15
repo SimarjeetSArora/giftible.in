@@ -4,7 +4,7 @@ import {
 } from "@mui/material";
 import {
   ExpandLess, ExpandMore, People, Category, LocalOffer, Notifications,
-  ShoppingCart, Dashboard, Storefront, Person, CheckCircle, PlaylistAddCheck, Assignment
+  ShoppingCart, Dashboard, Storefront, Person, CheckCircle, PlaylistAddCheck, Assignment, BarChart, AttachMoney
 } from "@mui/icons-material";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -15,7 +15,9 @@ const NGOSidebar = ({ open }) => {
   const [openNGO, setOpenNGO] = useState(false);
   const [openCategories, setOpenCategories] = useState(false);
   const [openOrders, setOpenOrders] = useState(false);
-  const [openProducts, setOpenProducts] = useState(false);
+  const [openProducts, setOpenProducts] = useState(false); // Added Products Section
+  const [openSales, setOpenSales] = useState(false); // Added Products Section
+  const [openPayouts, setOpenPayouts] = useState(false); // Added Products Section
 
   // Close collapsible menus when sidebar collapses
   useEffect(() => {
@@ -24,6 +26,8 @@ const NGOSidebar = ({ open }) => {
       setOpenCategories(false);
       setOpenOrders(false);
       setOpenProducts(false);
+      setOpenSales(false);
+      setOpenPayouts(false);
     }
   }, [open]);
 
@@ -57,117 +61,75 @@ const NGOSidebar = ({ open }) => {
         >
           {/* Dashboard */}
           <Tooltip title={!open ? "Dashboard" : ""} placement="right">
-            <ListItemButton
-              component={NavLink}
-              to="/dashboard/admin"
-              selected={location.pathname === "/dashboard/admin"}
-            >
+            <ListItemButton component={NavLink} to="/dashboard/ngo" selected={location.pathname === "/dashboard/ngo"}>
               <ListItemIcon sx={{ color: "#F5B800" }}><Dashboard /></ListItemIcon>
               {open && <ListItemText primary="Dashboard" />}
             </ListItemButton>
           </Tooltip>
 
-          {/* NGOs (Collapsible) */}
-          <ListItemButton onClick={() => setOpenNGO(!openNGO)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><People /></ListItemIcon>
-            {open && <ListItemText primary="NGOs" />}
-            {open ? (openNGO ? <ExpandLess /> : <ExpandMore />) : null}
+          
+          
+          {/* Products (Collapsible) */}
+          <ListItemButton onClick={() => setOpenProducts(!openProducts)}>
+            <ListItemIcon sx={{ color: "#F5B800" }}><Storefront /></ListItemIcon>
+            {open && <ListItemText primary="Products" />}
+            {open ? (openProducts ? <ExpandLess /> : <ExpandMore />) : null}
           </ListItemButton>
-          <Collapse in={openNGO} timeout="auto" unmountOnExit>
+          <Collapse in={openProducts} timeout="auto" unmountOnExit>
             <List disablePadding>
-              <ListItemButton
-                component={NavLink}
-                to="/dashboard/admin/ngos"
-                selected={location.pathname === "/dashboard/admin/ngos"}
-                sx={{ pl: open ? 4 : 2 }}
-              >
+            <ListItemButton component={NavLink} to="/ngo/products/add" selected={location.pathname === "/ngo/products/add"} sx={{ pl: open ? 4 : 2 }}>
                 <ListItemIcon sx={{ color: "#F5B800" }}><CheckCircle /></ListItemIcon>
-                <ListItemText primary="Approve NGOs" />
+                <ListItemText primary="Add Products" />
               </ListItemButton>
-              <ListItemButton
-                component={NavLink}
-                to="/admin/ngos/manage"
-                selected={location.pathname === "/admin/ngos/manage"}
-                sx={{ pl: open ? 4 : 2 }}
-              >
-                <ListItemIcon sx={{ color: "#F5B800" }}><PlaylistAddCheck /></ListItemIcon>
-                <ListItemText primary="Manage NGOs" />
-              </ListItemButton>
-            </List>
-          </Collapse>
-
-          {/* Categories (Collapsible) */}
-          <ListItemButton onClick={() => setOpenCategories(!openCategories)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><Category /></ListItemIcon>
-            {open && <ListItemText primary="Categories" />}
-            {open ? (openCategories ? <ExpandLess /> : <ExpandMore />) : null}
-          </ListItemButton>
-          <Collapse in={openCategories} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              <ListItemButton
-                component={NavLink}
-                to="/admin/categories"
-                selected={location.pathname === "/admin/categories"}
-                sx={{ pl: open ? 4 : 2 }}
-              >
+              <ListItemButton component={NavLink} to="/ngo/products/status" selected={location.pathname === "/ngo/products/status"} sx={{ pl: open ? 4 : 2 }}>
                 <ListItemIcon sx={{ color: "#F5B800" }}><CheckCircle /></ListItemIcon>
-                <ListItemText primary="Approve Categories" />
+                <ListItemText primary="Update Status" />
               </ListItemButton>
-              <ListItemButton
-                component={NavLink}
-                to="/admin/categories/manage"
-                selected={location.pathname === "/admin/categories/manage"}
-                sx={{ pl: open ? 4 : 2 }}
-              >
+              <ListItemButton component={NavLink} to="/ngo/products" selected={location.pathname === "/ngo/products"} sx={{ pl: open ? 4 : 2 }}>
                 <ListItemIcon sx={{ color: "#F5B800" }}><PlaylistAddCheck /></ListItemIcon>
-                <ListItemText primary="Manage Categories" />
+                <ListItemText primary="Manage Products" />
               </ListItemButton>
             </List>
           </Collapse>
 
-          {/* Manage Coupons */}
-          <Tooltip title={!open ? "Manage Coupons" : ""} placement="right">
-            <ListItemButton component={NavLink} to="/admin/coupons" selected={location.pathname === "/admin/coupons"}>
-              <ListItemIcon sx={{ color: "#F5B800" }}><LocalOffer /></ListItemIcon>
-              {open && <ListItemText primary="Manage Coupons" />}
-            </ListItemButton>
-          </Tooltip>
 
-          {/* Notifications */}
-          <Tooltip title={!open ? "Notifications" : ""} placement="right">
-            <ListItemButton component={NavLink} to="/admin/notifications/list" selected={location.pathname === "/admin/notifications/list"}>
-              <ListItemIcon sx={{ color: "#F5B800" }}><Notifications /></ListItemIcon>
-              {open && <ListItemText primary="Notifications List" />}
-            </ListItemButton>
-          </Tooltip>
 
-          {/* Orders (Collapsible) */}
-          <ListItemButton onClick={() => setOpenOrders(!openOrders)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><ShoppingCart /></ListItemIcon>
-            {open && <ListItemText primary="Orders" />}
-            {open ? (openOrders ? <ExpandLess /> : <ExpandMore />) : null}
-          </ListItemButton>
-          <Collapse in={openOrders} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              <ListItemButton
-                component={NavLink}
-                to="/admin/orders/manage"
-                selected={location.pathname === "/admin/orders/manage"}
-                sx={{ pl: open ? 4 : 2 }}
-              >
-                <ListItemIcon sx={{ color: "#F5B800" }}><Assignment /></ListItemIcon>
-                <ListItemText primary="Manage Orders" />
+          {/* Add and View Category */}
+          <Tooltip title={!open ? "Categories" : ""} placement="right">
+            <ListItemButton component={NavLink} to="/ngo/categories/" selected={location.pathname === "/ngo/categories"}>
+              <ListItemIcon sx={{ color: "#F5B800" }}><Category /></ListItemIcon>
+              {open && <ListItemText primary="Categories" />}
+            </ListItemButton>
+          </Tooltip>          
+
+
+           {/* Orders */}
+          <Tooltip title={!open ? "Orders" : ""} placement="right">
+            <ListItemButton component={NavLink} to="/ngo/orders/manage" selected={location.pathname === "/ngo/orders/manage"}>
+                <ListItemIcon sx={{ color: "#F5B800" }}><ShoppingCart /></ListItemIcon>
+                <ListItemText primary="Orders" />
               </ListItemButton>
-            </List>
-          </Collapse>
-
-          {/* Manage Users */}
-          <Tooltip title={!open ? "Manage Users" : ""} placement="right">
-            <ListItemButton component={NavLink} to="/admin/users/manage" selected={location.pathname === "/admin/users/manage"}>
-              <ListItemIcon sx={{ color: "#F5B800" }}><Person /></ListItemIcon>
-              {open && <ListItemText primary="Manage Users" />}
-            </ListItemButton>
           </Tooltip>
+
+
+           {/* Sales */}
+          <Tooltip title={!open ? "Sales" : ""} placement="right">
+             <ListItemButton component={NavLink} to="/ngo/sales" selected={location.pathname === "/ngo/sales"}>
+               <ListItemIcon sx={{ color: "#F5B800" }}><BarChart /></ListItemIcon>
+                 <ListItemText primary="Sales" />
+             </ListItemButton>
+          </Tooltip>
+          
+          {/* Payouts */}
+          <Tooltip title={!open ? "Payouts" : ""} placement="right">
+             <ListItemButton component={NavLink} to="/ngo/payouts" selected={location.pathname === "/ngo/payouts"}>
+               <ListItemIcon sx={{ color: "#F5B800" }}><AttachMoney /></ListItemIcon>
+                 <ListItemText primary="Payouts" />
+             </ListItemButton>
+          </Tooltip>
+
+
+
         </List>
       </Drawer>
     </Box>

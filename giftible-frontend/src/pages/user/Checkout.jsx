@@ -1,15 +1,15 @@
 import React, { useEffect, useState } from "react";
 import {
   Container, Typography, Button, Box, Grid, Card, CardContent, IconButton, Divider,
-  Modal, Paper
+  Modal, Paper, Snackbar, Alert
 } from "@mui/material";
 import { AddCircle, LocationOn } from "@mui/icons-material";
 import {
   fetchAddresses, addAddress, fetchCartSummary,
   initiateRazorpayPayment, verifyPayment, placeOrder
 } from "../../services/checkoutService";
-import AddressForm from "../../components/AddressForm";
-import CouponSelector from "../../pages/user/coupons/CouponSelector";
+import AddressForm from "./address/AddressForm";
+import CouponSelector from "./coupons/CouponSelector";
 
 function Checkout() {
   const [addresses, setAddresses] = useState([]);
@@ -17,9 +17,10 @@ function Checkout() {
   const [showAddressForm, setShowAddressForm] = useState(false);
   const [appliedCoupon, setAppliedCoupon] = useState(null);
   const [cartSummary, setCartSummary] = useState({ total: 0, discount: 0, final_total: 0 });
-  const [platformFee] = useState(20);
+  const [platformFee] = useState(50);
   const [grandTotal, setGrandTotal] = useState(0);
   const [isPlacingOrder, setIsPlacingOrder] = useState(false);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
 
   useEffect(() => {
     const loadData = async () => {
@@ -48,6 +49,12 @@ function Checkout() {
     loadData();
   }, [appliedCoupon, platformFee]);
   
+
+  const handleSnackbarClose = () => {
+    setSnackbar({ ...snackbar, open: false });
+  };
+
+
   const handleAddressSubmit = async (address) => {
     try {
       const response = await addAddress(address);
@@ -71,10 +78,16 @@ function Checkout() {
     });
 
   const handlePayment = async () => {
-    if (!selectedAddress) return alert("⚠️ Please select an address.");
+    if (!selectedAddress) {
+      setSnackbar({ open: true, message: "⚠️ Please select an address.", severity: "warning" });
+      return;
+    }
 
     const isScriptLoaded = await loadRazorpayScript();
-    if (!isScriptLoaded) return alert("❌ Failed to load Razorpay SDK.");
+    if (!isScriptLoaded) {
+      setSnackbar({ open: true, message: "❌ Failed to load Razorpay SDK.", severity: "error" });
+      return;
+    }
 
     try {
       setIsPlacingOrder(true);
@@ -100,10 +113,10 @@ function Checkout() {
               amount: grandTotal,
               signature: razorpay_signature,
             });
-            alert("✅ Order placed successfully!");
-            window.location.href = "/order-success";
+            setSnackbar({ open: true, message: "✅ Order placed successfully!", severity: "success" });
+            window.location.href = "/user/orders";
           } else {
-            alert("❌ Payment verification failed.");
+            setSnackbar({ open: true, message: "❌ Payment verification failed.", severity: "error" });
           }
         },
         theme: { color: "#6A4C93" },
@@ -112,7 +125,7 @@ function Checkout() {
       new window.Razorpay(options).open();
     } catch (error) {
       console.error("❌ Payment Error:", error);
-      alert("❌ Payment failed.");
+      setSnackbar({ open: true, message: "❌ Payment failed.", severity: "error" });
     } finally {
       setIsPlacingOrder(false);
     }
@@ -252,6 +265,20 @@ function Checkout() {
           {isPlacingOrder ? "Processing..." : `Pay ₹${grandTotal.toFixed(2)} & Place Order`}
         </Button>
       </Box>
+
+ {/* ✅ Snackbar Component */}
+ <Snackbar
+      open={snackbar.open}
+      autoHideDuration={3000}
+      onClose={handleSnackbarClose}
+      anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+    >
+      <Alert severity={snackbar.severity} onClose={handleSnackbarClose}>
+        {snackbar.message}
+      </Alert>
+    </Snackbar>
+
+
     </Container>
   );
 }

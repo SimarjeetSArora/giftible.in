@@ -3,7 +3,6 @@ import {
   AppBar,
   Toolbar,
   IconButton,
-  InputBase,
   Drawer,
   List,
   ListItem,
@@ -18,17 +17,15 @@ import {
   Menu as MenuIcon,
   Brightness4,
   Brightness7,
-  Category,
-  Groups,
-  Info,
-  Login as LoginIcon,
-  PersonAdd,
+  ShoppingBag,
+  VolunteerActivism, // ✅ Updated for NGOs
+  InfoOutlined, // ✅ Updated for About Us
+  LoginOutlined, // ✅ Updated for Login
+  PersonAddAlt1, // ✅ Updated for Register
 } from "@mui/icons-material";
 import { useThemeContext } from "../../context/ThemeContext";
 import { NavLink } from "react-router-dom";
 import SearchBar from "../SearchBar";
-
-
 
 const NotLoggedInNavbar = () => {
   const theme = useTheme();
@@ -37,11 +34,11 @@ const NotLoggedInNavbar = () => {
   const isMobile = useMediaQuery(theme.breakpoints.down("md"));
 
   const menuItems = [
-    { text: "Categories", path: "/categories", icon: <Category /> },
-    { text: "NGOs", path: "/ngos", icon: <Groups /> },
-    { text: "About Us", path: "/about-us", icon: <Info /> },
-    { text: "Login", path: "/login", icon: <LoginIcon /> },
-    { text: "Register", path: "/register/user", icon: <PersonAdd /> },
+    { text: "Products", path: "/products", icon: <ShoppingBag /> },
+    { text: "NGOs", path: "/ngos", icon: <VolunteerActivism /> }, // ✅ Updated
+    { text: "About Us", path: "/about-us", icon: <InfoOutlined /> }, // ✅ Updated
+    { text: "Login", path: "/login", icon: <LoginOutlined /> }, // ✅ Updated
+    { text: "Register", path: "/register/user", icon: <PersonAddAlt1 /> }, // ✅ Updated
   ];
 
   return (
@@ -58,7 +55,12 @@ const NotLoggedInNavbar = () => {
         <Toolbar sx={{ justifyContent: "space-between", minHeight: "70px", padding: "0 16px" }}>
           {/* 🔗 Left: Logo */}
           <NavLink to="/" style={{ display: "flex", alignItems: "center" }}>
-            <Box component="img" src="/assets/logo.png" alt="Giftible Logo" sx={{ width: "auto", maxHeight: "40px" }} />
+            <Box
+              component="img"
+              src="/assets/logo.png"
+              alt="Giftible Logo"
+              sx={{ width: "auto", maxHeight: "40px", pr: 2 }} // ✅ Added right padding
+            />
           </NavLink>
 
           {/* 🔍 Center: Search Bar */}
@@ -105,8 +107,21 @@ const NotLoggedInNavbar = () => {
       </AppBar>
 
       {/* 📱 Mobile Drawer */}
-      <Drawer anchor="right" open={drawerOpen} onClose={() => setDrawerOpen(false)}>
-        <Box sx={{ width: 250, bgcolor: mode === "dark" ? "#1B1B1B" : "#FFFFFF", height: "100%" }}>
+      <Drawer
+        anchor="right"
+        open={drawerOpen}
+        onClose={() => setDrawerOpen(false)}
+        sx={{
+          "& .MuiPaper-root": {
+            bgcolor: "#6A4C93", // ✅ Purple background
+            color: "#FFFFFF", // ✅ White text
+            height: "calc(100vh - 40px)", // ✅ Adjust height to account for navbar
+            marginTop: "40px", // ✅ Push Drawer below the navbar
+            overflowY: "auto", // ✅ Enable scrolling
+          },
+        }}
+      >
+        <Box sx={{ width: 250, py: 2 }}> {/* ✅ Added padding to the drawer content */}
           <List>
             {menuItems.map(({ text, path, icon }) => (
               <ListItem
@@ -116,13 +131,14 @@ const NotLoggedInNavbar = () => {
                 to={path}
                 onClick={() => setDrawerOpen(false)}
                 sx={{
-                  color: mode === "dark" ? "#FFFFFF" : "#1B1B1B",
-                  fontWeight: "bold",
-                  "&.active": { color: "#F5B800" },
+                  display: "flex",
+                  alignItems: "center",
+                  "&:hover": { bgcolor: "#7B5BA6" }, // ✅ Smooth hover effect
+                  py: 1.5, // ✅ Ensure proper spacing
                 }}
               >
-                <ListItemIcon sx={{ color: "inherit" }}>{icon}</ListItemIcon>
-                <ListItemText primary={text} />
+                <ListItemIcon sx={{ color: "#FFFFFF", minWidth: "40px" }}>{icon}</ListItemIcon>
+                <ListItemText primary={text} sx={{ color: "#FFFFFF", fontWeight: "bold" }} />
               </ListItem>
             ))}
           </List>

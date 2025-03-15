@@ -17,7 +17,7 @@ import {
   useTheme
 } from "@mui/material";
 import { Add, Delete, Edit, LocationOn } from "@mui/icons-material";
-import axiosInstance from "../services/axiosInstance";
+import axiosInstance from "../../../services/axiosInstance";
 import AddressForm from "./AddressForm";
 
 const AddressesPage = () => {
@@ -25,40 +25,44 @@ const AddressesPage = () => {
   const isDarkMode = theme.palette.mode === "dark";
 
   const [addresses, setAddresses] = useState([]);
-  const [loading, setLoading] = useState(true);
   const [open, setOpen] = useState(false);
   const [editMode, setEditMode] = useState(false);
   const [currentAddress, setCurrentAddress] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
   const [selectedAddress, setSelectedAddress] = useState(null);
+  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [addressToDelete, setAddressToDelete] = useState(null);
 
   useEffect(() => {
     fetchAddresses();
   }, []);
 
 
-const fetchAddresses = async () => {
-  try {
-    const response = await axiosInstance.get("/addresses/");
-    const data = response.data;
-
-    // ✅ Ensure it's an array
-    if (Array.isArray(data)) {
+  const fetchAddresses = async () => {
+    try {
+      const response = await axiosInstance.get("/addresses/");
+      const data = response.data;
+  
+      if (!Array.isArray(data)) {
+        console.error("❌ Unexpected response format:", data);
+        setAddresses([]);
+        return;
+      }
+  
       setAddresses(data);
-    } else {
-      setAddresses([]); // ✅ Prevent errors if response is not an array
+  
+      // ✅ Auto-select the default address
+      const defaultAddress = data.find((address) => address.is_default);
+      if (defaultAddress) {
+        setSelectedAddress(defaultAddress.id);
+      }
+    } catch (error) {
+      console.error("❌ Failed to load addresses:", error);
+      setAddresses([]);
+      setSnackbar({ open: true, message: "❌ Failed to load addresses.", severity: "error" });
     }
-
-    const defaultAddress = data.find((address) => address.is_default);
-    if (defaultAddress) {
-      setSelectedAddress(defaultAddress.id);
-    }
-  } catch (error) {
-    console.error("❌ Failed to load addresses:", error);
-    setAddresses([]); // ✅ Ensure state is always an array
-    setSnackbar({ open: true, message: "❌ Failed to load addresses.", severity: "error" });
-  }
-};
+  };
+  
 
 
   const handleAddOrEditAddress = async (newAddress) => {
@@ -78,54 +82,62 @@ const fetchAddresses = async () => {
     setCurrentAddress(null);
   };
 
-  const handleEdit = async (id) => {
-    try {
-      const response = await axiosInstance.get(`/addresses/`);
-      const addressToEdit = response.data.find((address) => address.id === id);
-      if (addressToEdit) {
-        setCurrentAddress(addressToEdit);
-        setEditMode(true);
-        setOpen(true);
-      }
-    } catch (error) {
-      setSnackbar({ open: true, message: "❌ Failed to load address details.", severity: "error" });
+  const handleEdit = (id) => {
+    const addressToEdit = addresses.find((address) => address.id === id);
+    if (addressToEdit) {
+      setCurrentAddress(addressToEdit);
+      setEditMode(true);
+      setOpen(true);
+    } else {
+      setSnackbar({ open: true, message: "❌ Address not found.", severity: "error" });
     }
   };
+  
 
-  const handleDeleteAddress = async (id) => {
-    if (!window.confirm("Are you sure you want to delete this address?")) return;
+  const handleOpenDeleteDialog = (id) => {
+    setAddressToDelete(id);
+    setDeleteDialogOpen(true);
+  };
+
+  const handleCloseDeleteDialog = () => {
+    setAddressToDelete(null);
+    setDeleteDialogOpen(false);
+  };
+
+  const handleDeleteAddress = async () => {
+    if (!addressToDelete) return;
+
     try {
-      await axiosInstance.delete(`/addresses/${id}`);
-      setAddresses(addresses.filter((address) => address.id !== id));
+      await axiosInstance.delete(`/addresses/${addressToDelete}`);
+      setAddresses((prev) => prev.filter((address) => address.id !== addressToDelete));
       setSnackbar({ open: true, message: "✅ Address deleted!", severity: "success" });
     } catch (error) {
       if (error.response?.status === 400) {
-        setSnackbar({ open: true, message: "An order is already placed with this address", severity: "error" });
+        setSnackbar({ open: true, message: "⚠️ An order is already placed with this address.", severity: "warning" });
       } else {
-        setSnackbar({ open: true, message: "Failed to delete address.", severity: "error" });
+        setSnackbar({ open: true, message: "❌ Failed to delete address.", severity: "error" });
       }
     }
+
+    handleCloseDeleteDialog();
   };
+  
 
   const handleSetDefault = async (id) => {
     try {
       await axiosInstance.put(`/addresses/${id}/set-default`);
-
       setSelectedAddress(id);
+  
       setAddresses((prevAddresses) =>
-        prevAddresses.map((addr) => ({
-          ...addr,
-          is_default: addr.id === id,
-        }))
+        prevAddresses.map((addr) => ({ ...addr, is_default: addr.id === id }))
       );
-
+  
       setSnackbar({ open: true, message: "✅ Default address updated!", severity: "success" });
-
-      fetchAddresses();
     } catch (error) {
       setSnackbar({ open: true, message: "❌ Failed to update default address.", severity: "error" });
     }
   };
+  
 
   return (
     <Box sx={{ maxWidth: "800px", mx: "auto", mt: 5, p: 3 }}>
@@ -146,7 +158,6 @@ const fetchAddresses = async () => {
         Add New Address
       </Button>
 
-      {loading && <CircularProgress sx={{ display: "block", mx: "auto", mt: 3 }} />}
 
       <Grid container spacing={3} mt={2}>
         {addresses.map((address) => (
@@ -208,7 +219,7 @@ const fetchAddresses = async () => {
                   sx={{ position: "absolute", top: 10, right: 10, color: "#FF4C4C" }}
                   onClick={(e) => {
                     e.stopPropagation();
-                    handleDeleteAddress(address.id);
+                    handleOpenDeleteDialog(address.id);
                   }}
                 >
                   <Delete />
@@ -227,6 +238,34 @@ const fetchAddresses = async () => {
           <AddressForm onSubmit={handleAddOrEditAddress} onCancel={() => setOpen(false)} initialData={currentAddress} />
         </DialogContent>
       </Dialog>
+
+
+{/* Delete Confirmation Dialog */}
+<Dialog open={deleteDialogOpen} onClose={handleCloseDeleteDialog}>
+        <DialogTitle sx={{ bgcolor: "#6A4C93", color: "#FFFFFF", fontWeight: "bold" }}>
+          Confirm Deletion
+        </DialogTitle>
+        <DialogContent>
+          <Typography variant="body1" sx={{ color: "#1B1B1B" }}>
+            Are you sure you want to delete this address? This action cannot be undone.
+          </Typography>
+        </DialogContent>
+        <DialogActions sx={{ p: 2 }}>
+          <Button onClick={handleCloseDeleteDialog} sx={{ color: "#6A4C93" }}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleDeleteAddress}
+            variant="contained"
+            sx={{ bgcolor: "#FF4C4C", "&:hover": { bgcolor: "#D43F3F" } }}
+          >
+            Delete
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+
+
 
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })}>
         <Alert severity={snackbar.severity} sx={{ width: "100%" }}>

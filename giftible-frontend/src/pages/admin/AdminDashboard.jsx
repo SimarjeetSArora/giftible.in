@@ -1,9 +1,12 @@
 import React, { useEffect, useState } from "react";
-import { Container, Typography, Grid, Paper, Box } from "@mui/material";
+import { Box, Grid, Card, CardContent, Typography, CircularProgress } from "@mui/material";
 import { People, Category, Storefront, ShoppingCart } from "@mui/icons-material";
-import { fetchAdminDashboardStats } from "../../services/adminService"; // API Call
+import { fetchAdminDashboardStats } from "../../services/adminService";
+import { useNavigate } from "react-router-dom";
 
 const AdminDashboard = () => {
+  const navigate = useNavigate();
+  const [loading, setLoading] = useState(true);
   const [stats, setStats] = useState({
     pendingNGOs: 0,
     totalNGOs: 0,
@@ -19,164 +22,120 @@ const AdminDashboard = () => {
   });
 
   useEffect(() => {
-    const fetchStats = async () => {
-      try {
-        const data = await fetchAdminDashboardStats();
-        setStats(data);
-      } catch (error) {
-        console.error("Error fetching admin dashboard stats:", error);
-      }
-    };
-    fetchStats();
+    fetchDashboardData();
   }, []);
 
-  // Function to render a visually appealing tile
-  const renderTile = (title, data, bgColor, icon) => (
-    <Grid item xs={12} sm={6} md={4}>
-      <Paper
-        elevation={5}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          bgcolor: bgColor,
-          color: "#FFFFFF",
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          transition: "transform 0.3s ease-in-out",
-          "&:hover": {
-            transform: "scale(1.05)",
-            boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.3)",
-          },
-        }}
-      >
-        {icon}
-        <Typography variant="h6" sx={{ mt: 1, fontWeight: "bold" }}>
-          {title}
-        </Typography>
-        <Typography variant="h4" fontWeight="bold">
-          {data}
-        </Typography>
-      </Paper>
-    </Grid>
-  );
+  const fetchDashboardData = async () => {
+    try {
+      const data = await fetchAdminDashboardStats();
+      setStats(data);
+    } catch (error) {
+      console.error("❌ Error fetching admin dashboard stats:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
 
-  // Function to render a tile with two values (side-by-side)
-  const renderCombinedTile = (title, data1, label1, data2, label2, bgColor, icon) => (
-    <Grid item xs={12} sm={6} md={4}>
-      <Paper
-        elevation={5}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          bgcolor: bgColor,
-          color: "#FFFFFF",
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          transition: "transform 0.3s ease-in-out",
-          "&:hover": {
-            transform: "scale(1.05)",
-            boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.3)",
-          },
-        }}
-      >
-        {icon}
-        <Typography variant="h6" sx={{ mt: 1, fontWeight: "bold" }}>
-          {title}
-        </Typography>
-        <Box display="flex" justifyContent="space-between" width="100%" mt={1}>
-          <Box flex={1} textAlign="center">
-            <Typography variant="body1">{label1}</Typography>
-            <Typography variant="h5" fontWeight="bold">{data1}</Typography>
-          </Box>
-          <Box flex={1} textAlign="center">
-            <Typography variant="body1">{label2}</Typography>
-            <Typography variant="h5" fontWeight="bold">{data2}</Typography>
-          </Box>
-        </Box>
-      </Paper>
-    </Grid>
-  );
+  const tileStyles = {
+    cursor: "pointer",
+    borderRadius: "16px",
+    boxShadow: "0px 4px 10px rgba(0, 0, 0, 0.15)",
+    transition: "0.3s",
+    height: 160,
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "center",
+    alignItems: "center",
+    "&:hover": {
+      transform: "scale(1.05)",
+      boxShadow: "0px 6px 15px rgba(0, 0, 0, 0.2)",
+    },
+  };
 
-  // Function to render a tile with four values (grid format)
-  const renderProductTile = (title, data1, label1, data2, label2, data3, label3, data4, label4, bgColor, icon) => (
-    <Grid item xs={12} sm={6} md={4}>
-      <Paper
-        elevation={5}
-        sx={{
-          p: 3,
-          borderRadius: 3,
-          bgcolor: bgColor,
-          color: "#FFFFFF",
-          textAlign: "center",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          transition: "transform 0.3s ease-in-out",
-          "&:hover": {
-            transform: "scale(1.05)",
-            boxShadow: "0px 8px 16px rgba(0, 0, 0, 0.3)",
-          },
-        }}
-      >
-        {icon}
-        <Typography variant="h6" sx={{ mt: 1, fontWeight: "bold" }}>
-          {title}
-        </Typography>
-        <Box display="grid" gridTemplateColumns="repeat(2, 1fr)" gap={2} width="100%" mt={1}>
-          <Box textAlign="center">
-            <Typography variant="body1">{label1}</Typography>
-            <Typography variant="h5" fontWeight="bold">{data1}</Typography>
-          </Box>
-          <Box textAlign="center">
-            <Typography variant="body1">{label2}</Typography>
-            <Typography variant="h5" fontWeight="bold">{data2}</Typography>
-          </Box>
-          <Box textAlign="center">
-            <Typography variant="body1">{label3}</Typography>
-            <Typography variant="h5" fontWeight="bold">{data3}</Typography>
-          </Box>
-          <Box textAlign="center">
-            <Typography variant="body1">{label4}</Typography>
-            <Typography variant="h5" fontWeight="bold">{data4}</Typography>
-          </Box>
-        </Box>
-      </Paper>
-    </Grid>
-  );
+  if (loading) {
+    return (
+      <Box display="flex" justifyContent="center" alignItems="center" height="80vh">
+        <CircularProgress color="primary" />
+      </Box>
+    );
+  }
 
   return (
-    <Container maxWidth="lg">
-      
+    <Box sx={{ p: 4 }}>
+      <Typography variant="h4" fontWeight="bold" color="primary" mb={3}>
+        Admin Dashboard
+      </Typography>
 
       <Grid container spacing={3}>
         {/* NGOs */}
-        {renderCombinedTile("NGOs", stats.pendingNGOs, "Pending", stats.totalNGOs, "Total", "#6A4C93", <People sx={{ fontSize: 50, color: "#FFFFFF" }} />)}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={tileStyles} onClick={() => navigate("/admin/ngos")}> 
+            <CardContent>
+              <People sx={{ fontSize: 50, color: "#6A4C93" }} />
+              <Typography variant="h6" fontWeight="bold" color="primary">NGOs</Typography>
+              <Typography variant="h4" fontWeight="bold">{stats.totalNGOs}</Typography>
+              <Typography color="textSecondary" fontSize={14}>
+                Pending: {stats.pendingNGOs}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
         {/* Users */}
-        {renderCombinedTile("Users", stats.unverifiedUsers, "Unverified", stats.totalUsers, "Total", "#FF5733", <People sx={{ fontSize: 50, color: "#FFFFFF" }} />)}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={tileStyles} onClick={() => navigate("/admin/users")}> 
+            <CardContent>
+              <People sx={{ fontSize: 50, color: "#FF5733" }} />
+              <Typography variant="h6" fontWeight="bold" color="primary">Users</Typography>
+              <Typography variant="h4" fontWeight="bold">{stats.totalUsers}</Typography>
+              <Typography color="textSecondary" fontSize={14}>
+                Unverified: {stats.unverifiedUsers}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
         {/* Products */}
-        {renderProductTile(
-          "Products",
-          stats.approvedProducts, "Approved",
-          stats.liveProducts, "Live",
-          stats.unliveProducts, "Unlive",
-          stats.totalProducts, "Total",
-          "#FFC300", <Storefront sx={{ fontSize: 50, color: "#FFFFFF" }} />
-        )}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={tileStyles} onClick={() => navigate("/admin/products")}> 
+            <CardContent>
+              <Storefront sx={{ fontSize: 50, color: "#FFC300" }} />
+              <Typography variant="h6" fontWeight="bold" color="primary">Products</Typography>
+              <Typography variant="h4" fontWeight="bold">{stats.totalProducts}</Typography>
+              <Typography color="textSecondary" fontSize={14}>
+                Approved: {stats.approvedProducts} | Live: {stats.liveProducts}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
         {/* Categories */}
-        {renderCombinedTile("Categories", stats.approvedCategories, "Approved", stats.totalCategories, "Total", "#007BFF", <Category sx={{ fontSize: 50, color: "#FFFFFF" }} />)}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={tileStyles} onClick={() => navigate("/admin/categories")}> 
+            <CardContent>
+              <Category sx={{ fontSize: 50, color: "#007BFF" }} />
+              <Typography variant="h6" fontWeight="bold" color="primary">Categories</Typography>
+              <Typography variant="h4" fontWeight="bold">{stats.totalCategories}</Typography>
+              <Typography color="textSecondary" fontSize={14}>
+                Approved: {stats.approvedCategories}
+              </Typography>
+            </CardContent>
+          </Card>
+        </Grid>
 
         {/* Orders */}
-        {renderTile("Undelivered Orders", stats.undeliveredOrders, "#DC3545", <ShoppingCart sx={{ fontSize: 50, color: "#FFFFFF" }} />)}
+        <Grid item xs={12} sm={6} md={3}>
+          <Card sx={tileStyles} onClick={() => navigate("/admin/orders")}> 
+            <CardContent>
+              <ShoppingCart sx={{ fontSize: 50, color: "#DC3545" }} />
+              <Typography variant="h6" fontWeight="bold" color="primary">Orders</Typography>
+              <Typography variant="h4" fontWeight="bold">{stats.undeliveredOrders}</Typography>
+              <Typography color="textSecondary" fontSize={14}>Undelivered Orders</Typography>
+            </CardContent>
+          </Card>
+        </Grid>
       </Grid>
-
-     </Container>
+    </Box>
   );
 };
 

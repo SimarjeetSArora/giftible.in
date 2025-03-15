@@ -10,7 +10,9 @@ const SearchBar = () => {
   const handleSearch = (e) => {
     e.preventDefault();
     if (query.trim()) {
-      navigate(`search?q=${encodeURIComponent(query.trim())}`);
+      const searchUrl = `/products?search_query=${encodeURIComponent(query.trim())}`;
+      navigate(searchUrl);
+      window.location.href = searchUrl; // ✅ Forces full page reload after search
     }
   };
 
@@ -19,20 +21,29 @@ const SearchBar = () => {
       component="form"
       onSubmit={handleSearch}
       sx={{
-        backgroundColor: "#FFFFFF",
-        borderRadius: "4px",
+        backgroundColor: "background.paper",
+        borderRadius: "8px",
         display: "flex",
-        width: { xs: "30%", sm: "65%", md: "45%" },
+        width: { xs: "80%", sm: "65%", md: "45%" },
         alignItems: "center",
+        boxShadow: "0px 3px 8px rgba(0,0,0,0.1)",
+        transition: "0.3s",
+        "&:hover": { boxShadow: "0px 4px 12px rgba(0,0,0,0.2)" },
       }}
     >
       <InputBase
-        placeholder="Search Products, Categories, NGOs..."
+        placeholder="Search products, categories, NGOs..."
         value={query}
         onChange={(e) => setQuery(e.target.value)}
-        sx={{ ml: 2, flex: 1, fontSize: "0.9rem", color: "#1B1B1B" }}
+        sx={{
+          ml: 2,
+          flex: 1,
+          fontSize: "1rem",
+          color: "text.primary",
+          "&::placeholder": { color: "text.secondary" },
+        }}
       />
-      <IconButton type="submit" sx={{ p: 1, color: "#F5B800" }}>
+      <IconButton type="submit" sx={{ p: 1, color: "primary.main" }}>
         <Search />
       </IconButton>
     </Box>

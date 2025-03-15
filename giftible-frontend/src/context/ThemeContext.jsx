@@ -1,4 +1,4 @@
-import { createContext, useState, useMemo, useContext } from "react";
+import { createContext, useState, useMemo, useContext, useEffect } from "react";
 import { createTheme, ThemeProvider } from "@mui/material/styles";
 
 const ThemeContext = createContext();
@@ -6,7 +6,15 @@ const ThemeContext = createContext();
 export const useThemeContext = () => useContext(ThemeContext);
 
 export const ThemeContextProvider = ({ children }) => {
-  const [mode, setMode] = useState("light");
+  // ✅ Persist theme mode across refreshes
+  const storedTheme = localStorage.getItem("theme") || "light";
+  const [mode, setMode] = useState(storedTheme);
+
+  useEffect(() => {
+    localStorage.setItem("theme", mode);
+    document.body.classList.toggle("dark-mode", mode === "dark");
+  }, [mode]);
+
   const toggleMode = () => setMode((prev) => (prev === "light" ? "dark" : "light"));
 
   const theme = useMemo(
@@ -16,19 +24,19 @@ export const ThemeContextProvider = ({ children }) => {
           mode,
           primary: {
             main: "#6A4C93", // Royal Purple
-            contrastText: "#FFFFFF", // White text on primary
+            contrastText: "#FFFFFF",
           },
           secondary: {
             main: "#F5B800", // Golden Yellow
-            contrastText: "#1B1B1B", // Jet Black text on secondary
+            contrastText: "#1B1B1B",
           },
           background: {
             default: mode === "light" ? "#FFFFFF" : "#1B1B1B", // White or Jet Black
             paper: mode === "light" ? "#FFFFFF" : "#292929", // Paper background
           },
           text: {
-            primary: mode === "light" ? "#1B1B1B" : "#FFFFFF", // Jet Black or White
-            secondary: mode === "light" ? "#6A4C93" : "#A8A8A8", // Royal Purple or Light Grey
+            primary: mode === "light" ? "#1B1B1B" : "#FFFFFF",
+            secondary: mode === "light" ? "#6A4C93" : "#A8A8A8",
           },
         },
         components: {
@@ -40,19 +48,19 @@ export const ThemeContextProvider = ({ children }) => {
                 textTransform: "none",
               },
               containedPrimary: {
-                backgroundColor: "#F5B800", // Golden Yellow
-                color: "#6A4C93", // Royal Purple text
+                backgroundColor: "#F5B800",
+                color: "#6A4C93",
                 "&:hover": {
-                  backgroundColor: "#6A4C93", // Royal Purple
-                  color: "#F5B800", // Golden Yellow text
+                  backgroundColor: "#6A4C93",
+                  color: "#F5B800",
                 },
               },
               outlinedPrimary: {
-                borderColor: "#F5B800", // Golden Yellow border
-                color: "#F5B800", // Golden Yellow text
+                borderColor: "#F5B800",
+                color: "#F5B800",
                 "&:hover": {
-                  backgroundColor: "#6A4C93", // Royal Purple background
-                  color: "#F5B800", // Golden Yellow text
+                  backgroundColor: "#6A4C93",
+                  color: "#F5B800",
                 },
               },
             },
@@ -60,17 +68,17 @@ export const ThemeContextProvider = ({ children }) => {
           MuiCard: {
             styleOverrides: {
               root: {
-                backgroundColor: mode === "light" ? "#FFFFFF" : "#292929", // White or dark card background
-                border: `2px solid #6A4C93`, // Subtle Royal Purple border
+                backgroundColor: mode === "light" ? "#FFFFFF" : "#292929",
+                border: `2px solid ${mode === "light" ? "#6A4C93" : "#F5B800"}`,
                 borderRadius: "12px",
-                boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.1)",
+                boxShadow: mode === "light" ? "0px 2px 6px rgba(0, 0, 0, 0.1)" : "0px 2px 10px rgba(255, 255, 255, 0.1)",
               },
             },
           },
           MuiLink: {
             styleOverrides: {
               root: {
-                color: "#F5B800", // Golden Yellow links
+                color: "#F5B800",
                 textDecoration: "none",
                 "&:hover": {
                   textDecoration: "underline",

@@ -3,8 +3,8 @@ import {
   Drawer, List, ListItemButton, ListItemText, ListItemIcon, Collapse, Box, Tooltip
 } from "@mui/material";
 import {
-  ExpandLess, ExpandMore, People, Category, LocalOffer, Notifications,
-  ShoppingCart, Dashboard, Storefront, Person, CheckCircle, PlaylistAddCheck, Assignment
+  ExpandLess, ExpandMore, People, Category, LocalOffer, Notifications, MonetizationOn,
+  ShoppingCart, Dashboard, Storefront, Person, CheckCircle, PlaylistAddCheck, Assignment, BarChart, AttachMoney, Payments, AccountBalance
 } from "@mui/icons-material";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -139,60 +139,42 @@ const AdminSidebar = ({ open }) => {
             </ListItemButton>
           </Tooltip>
 
-
-          {/* Orders (Collapsible) */}
-          <ListItemButton onClick={() => setOpenOrders(!openOrders)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><ShoppingCart /></ListItemIcon>
-            {open && <ListItemText primary="Orders" />}
-            {open ? (openOrders ? <ExpandLess /> : <ExpandMore />) : null}
-          </ListItemButton>
-          <Collapse in={openOrders} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              <ListItemButton component={NavLink} to="/admin/orders/manage" selected={location.pathname === "/admin/orders/manage"} sx={{ pl: open ? 4 : 2 }}>
-                <ListItemIcon sx={{ color: "#F5B800" }}><Assignment /></ListItemIcon>
-                <ListItemText primary="Manage Orders" />
+          {/* Orders */}
+          <Tooltip title={!open ? "Orders" : ""} placement="right">
+            <ListItemButton component={NavLink} to="/admin/orders/manage" selected={location.pathname === "/admin/orders/manage"}>
+                <ListItemIcon sx={{ color: "#F5B800" }}><ShoppingCart /></ListItemIcon>
+                <ListItemText primary="Orders" />
               </ListItemButton>
-            </List>
-          </Collapse>
+          </Tooltip>
 
-          {/* Products (Collapsible) */}
-          <ListItemButton onClick={() => setOpenSales(!openSales)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><Storefront /></ListItemIcon>
-            {open && <ListItemText primary="Sales" />}
-            {open ? (openSales ? <ExpandLess /> : <ExpandMore />) : null}
-          </ListItemButton>
-          <Collapse in={openSales} timeout="auto" unmountOnExit>
-            <List disablePadding>
-              <ListItemButton component={NavLink} to="/admin/products/approve" selected={location.pathname === "/admin/products/approve"} sx={{ pl: open ? 4 : 2 }}>
-                <ListItemIcon sx={{ color: "#F5B800" }}><CheckCircle /></ListItemIcon>
-                <ListItemText primary="Total Sales" />
+
+           {/* Sales */}
+           <Tooltip title={!open ? "Sales" : ""} placement="right">
+            <ListItemButton component={NavLink} to="/admin/sales" selected={location.pathname === "/admin/sales"}>
+                <ListItemIcon sx={{ color: "#F5B800" }}><BarChart /></ListItemIcon>
+                <ListItemText primary="Sales" />
               </ListItemButton>
-              <ListItemButton component={NavLink} to="/admin/products" selected={location.pathname === "/admin/products/manage"} sx={{ pl: open ? 4 : 2 }}>
-                <ListItemIcon sx={{ color: "#F5B800" }}><PlaylistAddCheck /></ListItemIcon>
-                <ListItemText primary="Manage Products" />
-              </ListItemButton>
-            </List>
-          </Collapse>
+          </Tooltip>
 
-
-          {/* Products (Collapsible) */}
+          {/* Payouts */}
           <ListItemButton onClick={() => setOpenPayouts(!openPayouts)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><Storefront /></ListItemIcon>
+            <ListItemIcon sx={{ color: "#F5B800" }}><AttachMoney /></ListItemIcon>
             {open && <ListItemText primary="Payouts" />}
             {open ? (openPayouts ? <ExpandLess /> : <ExpandMore />) : null}
           </ListItemButton>
           <Collapse in={openPayouts} timeout="auto" unmountOnExit>
             <List disablePadding>
-              <ListItemButton component={NavLink} to="/admin/products/approve" selected={location.pathname === "/admin/products/approve"} sx={{ pl: open ? 4 : 2 }}>
-                <ListItemIcon sx={{ color: "#F5B800" }}><CheckCircle /></ListItemIcon>
-                <ListItemText primary="Make Payouts" />
+              <ListItemButton component={NavLink} to="/admin/payouts/pending" selected={location.pathname === "/admin/payouts/pending"} sx={{ pl: open ? 4 : 2 }}>
+                <ListItemIcon sx={{ color: "#F5B800" }}><MonetizationOn /></ListItemIcon>
+                <ListItemText primary="Pending Payouts" />
               </ListItemButton>
-              <ListItemButton component={NavLink} to="/admin/products" selected={location.pathname === "/admin/products/manage"} sx={{ pl: open ? 4 : 2 }}>
-                <ListItemIcon sx={{ color: "#F5B800" }}><PlaylistAddCheck /></ListItemIcon>
-                <ListItemText primary="Manage Products" />
+              <ListItemButton component={NavLink} to="/admin/payouts" selected={location.pathname === "/admin/payouts"} sx={{ pl: open ? 4 : 2 }}>
+                <ListItemIcon sx={{ color: "#F5B800" }}><AccountBalance /></ListItemIcon>
+                <ListItemText primary="View Payouts" />
               </ListItemButton>
             </List>
           </Collapse>
+         
 
         </List>
       </Drawer>

@@ -98,27 +98,34 @@ function Login() {
       }), {
         headers: { "Content-Type": "application/x-www-form-urlencoded" },
       });
-  
-      const { access_token, refresh_token, role, id, first_name, last_name } = data;
-  
+
+      const { access_token, refresh_token, role, id, first_name, last_name, ngo_id } = data; // ✅ Include ngo_id
+
       console.log("✅ Login success:", data);
-  
-      // ✅ Store credentials properly
+
+      // ✅ Store credentials properly, including ngo_id
       localStorage.setItem("access_token", access_token);
       localStorage.setItem("refresh_token", refresh_token);
-      localStorage.setItem("user", JSON.stringify({ id, role, first_name, last_name }));
-  
+      
+      // ✅ Ensure `ngo_id` is stored only if the user is an NGO
+      const userData = { id, role, first_name, last_name };
+      if (role === "ngo" && ngo_id) {
+        userData.ngo_id = ngo_id;
+      }
+      
+      localStorage.setItem("user", JSON.stringify(userData));
+
       // ✅ Ensure sessionStorage is properly set before redirecting
       sessionStorage.setItem("authRole", role); 
       setAuthRole(role);
       console.log("🔐 Auth role set to:", role);
-  
+
       if (rememberMe) {
         localStorage.setItem("rememberedContact", contactNumber);
       } else {
         localStorage.removeItem("rememberedContact");
       }
-  
+
       // ✅ Delay redirection to prevent race conditions
       setTimeout(() => {
         navigateToDashboard(role);
@@ -128,7 +135,8 @@ function Login() {
       console.log("⚠️ Full error:", err);
       setError(err.response?.data?.detail || "An unexpected error occurred.");
     }
-  };
+};
+
   
   
   
