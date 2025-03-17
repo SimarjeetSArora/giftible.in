@@ -33,6 +33,8 @@ const Homepage = () => {
   const [categories, setCategories] = useState([]);
   const [featuredProducts, setFeaturedProducts] = useState([]);
   const [topNGOs, setTopNGOs] = useState([]);
+  const [loading, setLoading] = useState(true);
+  
 
   const colors = {
     textPrimary: mode === "dark" ? "#FFFFFF" : "#1B1B1B",

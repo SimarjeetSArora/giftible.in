@@ -1,15 +1,11 @@
 from sqlalchemy import (
     Column, Integer, String, Boolean, DateTime, Float, ForeignKey,
-    Enum, UniqueConstraint, func
+    Enum, UniqueConstraint, func, Text
 )
 from sqlalchemy.orm import relationship
 from database import Base
 from datetime import datetime, timedelta
 import enum
-
-
-
-
 
 # ✅ UsageLimit Enum for coupons
 class UsageLimit(enum.Enum):
@@ -74,6 +70,8 @@ class UniversalUser(Base):
     orders = relationship("Order", back_populates="user", cascade="all, delete-orphan")  # ✅ Ensure Orders Relationship Exists
     wishlist = relationship("Wishlist", back_populates="user", cascade="all, delete-orphan")
     payouts = relationship("Payout", back_populates="user", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="user", cascade="all, delete")
+
 
 
 class RefreshToken(Base):
@@ -110,6 +108,8 @@ class Product(Base):
     category = relationship("Category", back_populates="products")
     images = relationship("ProductImage", back_populates="product", cascade="all, delete-orphan")
     wishlist = relationship("Wishlist", back_populates="product", cascade="all, delete-orphan")
+    reviews = relationship("Review", back_populates="product", cascade="all, delete")
+
 
 # ✅ Product Image Model
 class ProductImage(Base):
@@ -255,6 +255,8 @@ class OrderItem(Base):
 
     order = relationship("Order", back_populates="order_items")
     product = relationship("Product")
+    reviews = relationship("Review", back_populates="order_item", cascade="all, delete")
+
 
 
 
@@ -297,3 +299,21 @@ class Payout(Base):
 
     # ✅ Relationship
     user = relationship("UniversalUser", back_populates="payouts")
+
+
+
+class Review(Base):
+    __tablename__ = "reviews"
+
+    id = Column(Integer, primary_key=True, index=True)
+    universal_user_id = Column(Integer, ForeignKey("universal_users.id"), nullable=False)
+    product_id = Column(Integer, ForeignKey("products.id"), nullable=False)
+    order_item_id = Column(Integer, ForeignKey("order_items.id"), unique=True, nullable=False)
+    rating = Column(Integer, nullable=False)
+    comment = Column(Text, nullable=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+    # ✅ Relationships
+    user = relationship("UniversalUser", back_populates="reviews")
+    product = relationship("Product", back_populates="reviews")
+    order_item = relationship("OrderItem", back_populates="reviews")

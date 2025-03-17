@@ -26,12 +26,26 @@ export const addToCart = async (productId, quantity) => {
 // Fetch the user’s cart
 export const fetchCart = async () => {
   try {
-    const response = await axiosInstance.get(`${API_BASE_URL}/cart`); // ✅ Remove trailing `/`
-    return response.data.cart_items;
+    const response = await axiosInstance.get(`${API_BASE_URL}/cart`);
+
+    const updatedCart = response.data.cart_items.map(item => ({
+      ...item,
+      outOfStock: item.stock === 0, // ✅ Mark items with zero stock
+    }));
+
+    // ✅ Remove out-of-stock items automatically
+    for (const item of updatedCart) {
+      if (item.outOfStock) {
+        await axiosInstance.delete(`${API_BASE_URL}/cart/remove/${item.product_id}`);
+      }
+    }
+
+    return updatedCart.filter(item => !item.outOfStock); // ✅ Return only in-stock items
   } catch (error) {
     throw error.response?.data?.detail || "Error fetching cart.";
   }
 };
+
 
 // Remove an item from the cart
 export const removeFromCart = async (productId) => {

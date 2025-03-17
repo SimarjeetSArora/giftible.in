@@ -3,8 +3,8 @@ import {
   Drawer, List, ListItemButton, ListItemText, ListItemIcon, Collapse, Box, Tooltip
 } from "@mui/material";
 import {
-  ExpandLess, ExpandMore, People, Category, LocalOffer, Notifications, MonetizationOn,
-  ShoppingCart, Dashboard, Storefront, Person, CheckCircle, PlaylistAddCheck, Assignment, BarChart, AttachMoney, Payments, AccountBalance
+  ExpandLess, ExpandMore, People, Category, LocalOffer, MonetizationOn, VolunteerActivism, ShowChart,
+  ShoppingCart, Dashboard, Storefront, CheckCircle, PlaylistAddCheck, BarChart, AttachMoney, AccountBalance
 } from "@mui/icons-material";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -67,6 +67,15 @@ const AdminSidebar = ({ open }) => {
             </ListItemButton>
           </Tooltip>
 
+           {/* Analytics */}
+                    <Tooltip title={!open ? "Analytics" : ""} placement="right">
+                      <ListItemButton component={NavLink} to="/admin/analytics" selected={location.pathname === "/ngo/analytics"}>
+                        <ListItemIcon sx={{ color: "#F5B800" }}><ShowChart /></ListItemIcon>
+                        {open && <ListItemText primary="Analytics" />}
+                      </ListItemButton>
+                    </Tooltip>
+
+
           <Tooltip title={!open ? "Manage Users" : ""} placement="right">
             <ListItemButton component={NavLink} to="/admin/manage-users" selected={location.pathname === "/admin/manage-ngos"}>
               <ListItemIcon sx={{ color: "#F5B800" }}><People /></ListItemIcon>
@@ -76,7 +85,7 @@ const AdminSidebar = ({ open }) => {
 
           {/* NGOs (Collapsible) */}
           <ListItemButton onClick={() => setOpenNGO(!openNGO)}>
-            <ListItemIcon sx={{ color: "#F5B800" }}><People /></ListItemIcon>
+            <ListItemIcon sx={{ color: "#F5B800" }}><VolunteerActivism /></ListItemIcon>
             {open && <ListItemText primary="NGOs" />}
             {open ? (openNGO ? <ExpandLess /> : <ExpandMore />) : null}
           </ListItemButton>

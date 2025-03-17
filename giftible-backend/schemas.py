@@ -1,8 +1,7 @@
 from pydantic import BaseModel, EmailStr, constr, Field
-from typing import Optional, List
+from typing import Optional, List, Dict
 from models import UsageLimit, OrderStatus
 from datetime import datetime
-
 
 # ✅ Common Schema for All Users
 class UserBase(BaseModel):
@@ -343,3 +342,28 @@ class PayoutResponse(BaseModel):
 
     class Config:
         from_attributes = True
+
+class InventoryUpdate(BaseModel):
+    stock: int
+
+
+
+
+# ✅ Review Schema for Creating a Review
+class ReviewCreate(BaseModel):
+    order_item_id: int
+    rating: int
+    comment: Optional[str] = None
+
+# ✅ Review Response Schema
+class ReviewResponse(BaseModel):
+    id: int
+    universal_user_id: int
+    product_id: int
+    order_item_id: int
+    rating: int
+    comment: Optional[str]
+    created_at: datetime
+
+    class Config:
+        orm_mode = True

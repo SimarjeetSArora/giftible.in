@@ -12,6 +12,7 @@ import {
   Snackbar,
   Alert,
   IconButton,
+  Rating,
 } from "@mui/material";
 import API_BASE_URL from "../../config";
 import { addToCart, fetchCartCount } from "../../services/cartService";
@@ -41,11 +42,21 @@ function ProductDetails() {
   const [userId, setUserId] = useState(null);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
   const [isWishlisted, setIsWishlisted] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(5); // Default 5 for unrated products
+
 
   useEffect(() => {
     const fetchProduct = async () => {
       try {
         const response = await axiosInstance.get(`${API_BASE_URL}/products/${productId}`);
+
+        console.log("📌 Product API Response:", response.data);
+        if (!response.data || !response.data.product) {
+          throw new Error("Invalid product response from server.");
+        }
+
+
         const productData = response.data;
 
 
@@ -55,6 +66,12 @@ function ProductDetails() {
 
         setProduct(productData);
         setSelectedImage(productData.product.images?.[0]?.image_url || "");
+
+        // ✅ Store average rating (Set default 5 if no rating exists)
+        setAverageRating(response.data.product.average_rating ?? 5);
+        // ✅ Store reviews in state
+        setReviews(response.data.reviews.review_list || []);
+
       } catch (error) {
         console.error("Error fetching product details:", error);
         setProduct(null);
@@ -95,6 +112,11 @@ function ProductDetails() {
       return;
     }
 
+    if (product.product.stock === 0) {
+      setSnackbar({ open: true, message: "Product is out of stock!", severity: "error" });
+      return;
+    }
+
     try {
       await addToCart(product.product.id, 1);
       setSnackbar({ open: true, message: "Added to cart!", severity: "success" });
@@ -112,6 +134,11 @@ function ProductDetails() {
   const handleBuyNow = () => {
     if (!userId) {
       handleLoginPrompt();
+      return;
+    }
+
+    if (product.product.stock === 0) {
+      setSnackbar({ open: true, message: "Product is out of stock!", severity: "error" });
       return;
     }
 
@@ -219,6 +246,15 @@ function ProductDetails() {
               elevation={3}
               sx={{ p: 3, border: "2px solid #6A4C93", borderRadius: "12px", boxShadow: 2 }}
             >
+
+              {/* ⭐ Product Rating */}
+<Box display="flex" alignItems="center" gap={1} mb={1}>
+  <Rating value={averageRating} precision={0.1} readOnly />
+  <Typography variant="body2" fontWeight="bold" color="text.secondary">
+    ({averageRating?.toFixed(1)})
+  </Typography>
+</Box>
+
               <Typography variant="h4" fontWeight="bold" gutterBottom>
                 {product.product.name}
               </Typography>
@@ -234,13 +270,41 @@ function ProductDetails() {
 
               {/* 🛒 Action Buttons */}
               <Box mt={3}>
-                <Button variant="contained" fullWidth sx={{ mb: 2, borderRadius: "8px" }} onClick={handleAddToCart} startIcon={<ShoppingCartIcon />}>
-                  Add to Cart
-                </Button>
-                <Button variant="outlined" fullWidth sx={{ borderRadius: "8px" }} onClick={handleBuyNow} startIcon={<CreditCardIcon />}>
-                  Buy Now
-                </Button>
-              </Box>
+  <Button
+    variant="contained"
+    fullWidth
+    sx={{ mb: 2, borderRadius: "8px" }}
+    onClick={handleAddToCart}
+    startIcon={<ShoppingCartIcon />}
+    disabled={product.product.stock === 0} // ✅ Disable if stock is 0
+  >
+    {product.product.stock === 0 ? "Out of Stock" : "Add to Cart"}
+  </Button>
+
+  <Button
+    variant="outlined"
+    fullWidth
+    sx={{ borderRadius: "8px" }}
+    onClick={handleBuyNow}
+    startIcon={<CreditCardIcon />}
+    disabled={product.product.stock === 0} // ✅ Disable if stock is 0
+  >
+    {product.product.stock === 0 ? "Out of Stock" : "Buy Now"}
+  </Button>
+</Box>
+
+{/* ✅ Snackbar Notification */}
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={handleSnackbarClose}
+  anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+>
+  <Alert severity={snackbar.severity} onClose={handleSnackbarClose}>
+    {snackbar.message}
+  </Alert>
+</Snackbar>
+
             </Paper>
 
             {/* 🏢 NGO Box */}
@@ -284,7 +348,33 @@ function ProductDetails() {
 
           </Grid>
         </Grid>
+         {/* 📝 User Reviews Section */}
+{reviews.length > 0 ? (
+  <Box mt={4}>
+    <Typography variant="h5" fontWeight="bold">User Reviews</Typography>
+
+    {reviews.map((review, index) => (
+      <Paper key={index} sx={{ p: 2, mt: 2, borderRadius: "12px", boxShadow: 2 }}>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Avatar>{review.user.first_name[0]}</Avatar>
+          <Box>
+            <Typography fontWeight="bold">
+              {review.user.first_name} {review.user.last_name}
+            </Typography>
+            <Rating value={review.rating} precision={0.1} readOnly />
+          </Box>
+        </Box>
+        <Typography mt={1} color="text.secondary">{review.comment || "No Comment"}</Typography>
+      </Paper>
+    ))}
+  </Box>
+) : (
+  <Typography mt={4} color="text.secondary">No reviews yet.</Typography>
+)}
       </Box>
+
+     
+
 
  {/* ✅ Snackbar Component */}
  <Snackbar

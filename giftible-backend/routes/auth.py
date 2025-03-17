@@ -8,19 +8,20 @@ from dotenv import load_dotenv
 from passlib.context import CryptContext
 from fastapi.security import OAuth2PasswordBearer, OAuth2PasswordRequestForm
 from database import get_db
-from models import UniversalUser, RefreshToken, NGO
+from models import UniversalUser, RefreshToken, NGO, PasswordResetToken
 from schemas import (
     UserCreate, AdminCreate, UserResponse, UserBase, NGOCreateForm,
-    LogoutRequest, RefreshTokenRequest, RegistrationResponse
+    LogoutRequest, RefreshTokenRequest, RegistrationResponse, ForgotPasswordRequest, ResetPasswordRequest
 )
 
 from .utils import (
     create_access_token, create_refresh_token,
-    save_refresh_token, send_verification_email, send_contact_verification_link
+    save_refresh_token, send_verification_email, send_contact_verification_link, send_forgot_password_mail
 )
 from jose import jwt, JWTError
 import re
 import random
+import string
 
 
 # 🚀 Load environment variables
@@ -32,6 +33,8 @@ REFRESH_SECRET_KEY = os.getenv("REFRESH_SECRET_KEY", "your_refresh_secret_key")
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 30
 REFRESH_TOKEN_EXPIRE_DAYS = 7
+
+RESET_TOKEN_EXPIRE_MINUTES = 30  # Password reset tokens expire in 30 minutes
 
 pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="token")
@@ -458,3 +461,93 @@ def refresh_access_token(request: RefreshTokenRequest, db: Session = Depends(get
 
 
 
+
+
+
+# ✅ Generate a random secure token
+def generate_reset_token(length=32):
+    return ''.join(random.choices(string.ascii_letters + string.digits, k=length))
+
+
+# ✅ Forgot Password Route
+@router.post("/forgot-password")
+def forgot_password(contact_number: str = Form(...), db: Session = Depends(get_db)):
+    """Sends a password reset link to the registered email if the contact number is found."""
+    
+    # Validate mobile number format (10-digit number)
+    if not re.fullmatch(r"\d{10}", contact_number):
+        raise HTTPException(status_code=400, detail="Invalid contact number format. Must be exactly 10 digits.")
+
+    # Find user by contact number
+    user = db.query(UniversalUser).filter(UniversalUser.contact_number == contact_number).first()
+
+    if not user:
+        raise HTTPException(status_code=404, detail="User with this contact number not found.")
+
+    # Retrieve user's registered email
+    if not user.email:
+        raise HTTPException(status_code=400, detail="No email linked to this contact number. Contact support.")
+
+    # Generate unique token
+    reset_token = generate_reset_token()
+
+    # Store reset token in the database
+    expires_at = datetime.utcnow() + timedelta(minutes=RESET_TOKEN_EXPIRE_MINUTES)
+    reset_entry = PasswordResetToken(user_id=user.id, token=reset_token, expires_at=expires_at)
+
+    db.add(reset_entry)
+    db.commit()
+
+    # Send reset link to the user's email
+    reset_link = f"http://giftible.in/reset-password?token={reset_token}"
+    email_subject = "Reset Your Password - Giftible"
+    email_body = f"""
+    Hello {user.first_name},
+
+    We received a request to reset your password for Giftible.
+
+    Click the link below to reset your password:
+    {reset_link}
+
+    This link will expire in {RESET_TOKEN_EXPIRE_MINUTES} minutes.
+
+    If you did not request a password reset, please ignore this email.
+
+    Best regards,
+    Giftible Team
+    """
+
+    send_forgot_password_mail(user.email, email_subject, email_body)  # Sending reset email
+
+    return {"message": f"Password reset link sent to {user.email}"}
+
+
+
+# ✅ Reset Password Route
+@router.post("/reset-password")
+def reset_password(request: ResetPasswordRequest, db: Session = Depends(get_db)):
+    """Resets the user's password using a valid reset token."""
+    
+    # Find reset token in database
+    token_entry = db.query(PasswordResetToken).filter(PasswordResetToken.token == request.token).first()
+
+    if not token_entry:
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token.")
+
+    if token_entry.expires_at < datetime.utcnow():
+        raise HTTPException(status_code=400, detail="Reset token expired. Please request a new one.")
+
+    # Find the user
+    user = db.query(UniversalUser).filter(UniversalUser.id == token_entry.user_id).first()
+    if not user:
+        raise HTTPException(status_code=404, detail="User not found.")
+
+    # Hash new password
+    hashed_password = pwd_context.hash(request.new_password)
+    user.password = hashed_password
+
+    # Remove the used token
+    db.delete(token_entry)
+    db.commit()
+
+    return {"message": "Password reset successful. You can now log in."}

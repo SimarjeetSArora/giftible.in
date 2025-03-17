@@ -4,7 +4,7 @@ from datetime import datetime, timedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from database import get_db
-from models import Order, OrderItem, Cart, CartItem, UniversalUser, Product, ProductImage, NGO
+from models import Order, OrderItem, Cart, CartItem, UniversalUser, Product, ProductImage, NGO, Address
 from schemas import OrderResponse, UpdateOrderItemStatusRequest, OrderItemResponse, OrderStatus, CancelOrderItemRequest, ProductResponse
 from fastapi.security import OAuth2PasswordBearer
 from services.razorpay_client import verify_payment_signature
@@ -98,6 +98,13 @@ def place_order(
             if not product:
                 raise HTTPException(status_code=404, detail=f"Product with ID {item.product_id} not found")
 
+            # ✅ Check stock availability before placing the order
+            if product.stock < item.quantity:
+                raise HTTPException(status_code=400, detail=f"❌ Not enough stock for {product.name}")
+
+            # ✅ Reduce stock after order placement
+            product.stock -= item.quantity
+
             # ✅ Create OrderItem with status
             order_item = OrderItem(
                 order_id=order.id,
@@ -123,6 +130,7 @@ def place_order(
         db.rollback()
         print(f"❌ Error placing order: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 
 
@@ -154,7 +162,11 @@ def view_orders(
         raise HTTPException(status_code=403, detail="Unauthorized access.")
 
     # ✅ Base query for order items
-    query = db.query(OrderItem).join(Order, OrderItem.order_id == Order.id).join(Product, OrderItem.product_id == Product.id)
+    query = (
+        db.query(OrderItem)
+        .join(Order, OrderItem.order_id == Order.id)
+        .join(Product, OrderItem.product_id == Product.id)
+    )
 
     # ✅ Restrict NGOs to only their order items
     if current_user.role == "ngo":
@@ -190,6 +202,22 @@ def view_orders(
     # ✅ Process order items based on role
     filtered_order_items = []
     for item in order_items:
+        # ✅ Fetch Full Address Object
+        address = db.query(Address).filter(Address.id == item.order.address_id).first()
+
+        address_response = {
+            "id": address.id if address else None,
+            "full_name": address.full_name if address else None,
+            "contact_number": address.contact_number if address else None,
+            "address_line": address.address_line if address else None,
+            "landmark": address.landmark if address else None,
+            "city": address.city if address else None,
+            "state": address.state if address else None,
+            "pincode": address.pincode if address else None,
+            "is_default": address.is_default if address else False
+        } if address else None
+
+        # ✅ Construct Order Item Response
         order_item_data = {
             "id": item.id,
             "order_id": item.order_id,
@@ -205,19 +233,19 @@ def view_orders(
                 "name": item.product.name,
                 "price": item.product.price,
                 "description": item.product.description,
-            }
+            },
+            "delivery_address": address_response  # ✅ Fixed Address Issue
         }
 
         # ✅ Add NGO Name for Admins
         if current_user.role == "admin":
-          ngo_name = (
-            db.query(NGO.ngo_name)
-            .join(Product, Product.universal_user_id == NGO.universal_user_id)  # ✅ Correct Join Condition
-            .filter(Product.id == item.product_id)  # ✅ Get NGO Based on OrderItem's Product ID
-            .scalar()  # ✅ Return a Single Value Instead of an SQLAlchemy Row
-          )
-          order_item_data["ngo_name"] = ngo_name if ngo_name else "N/A"  # ✅ Default to "N/A" if no NGO found
-
+            ngo_name = (
+                db.query(NGO.ngo_name)
+                .join(Product, Product.universal_user_id == NGO.universal_user_id)
+                .filter(Product.id == item.product_id)
+                .scalar()
+            )
+            order_item_data["ngo_name"] = ngo_name if ngo_name else "N/A"
 
         filtered_order_items.append(order_item_data)
 
@@ -252,6 +280,8 @@ def view_orders(
         "order_items": filtered_order_items,
         "products": filtered_products
     }
+
+
 
 
 
@@ -298,17 +328,25 @@ def update_order_item_status(
 
 
 # 📄 User: Get Order Details
-@router.get("/{order_id}", response_model=OrderResponse, summary="User: Get detailed order information")
-def get_order_details(order_id: int, db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
-    """Fetch detailed order information including order items and product details."""
-    
+@router.get("/{order_id}", summary="User: Get detailed order information")
+def get_order_details(
+    order_id: int,
+    db: Session = Depends(get_db),
+    current_user: UniversalUser = Depends(get_current_user)
+):
+    """Fetch detailed order information including order items, product details, and address."""
+
     # ✅ Fetch Order for the current user
-    order = db.query(Order).filter(Order.id == order_id, Order.universal_user_id == current_user.id).first()
+    order = (
+        db.query(Order)
+        .filter(Order.id == order_id, Order.universal_user_id == current_user.id)
+        .first()
+    )
 
     if not order:
         raise HTTPException(status_code=404, detail="Order not found.")
 
-    # ✅ Fetch order items with associated products
+    # ✅ Fetch Order Items with Associated Products
     order_items = (
         db.query(OrderItem)
         .join(Product, Product.id == OrderItem.product_id)
@@ -319,7 +357,7 @@ def get_order_details(order_id: int, db: Session = Depends(get_db), current_user
     if not order_items:
         raise HTTPException(status_code=404, detail="No items found in this order.")
 
-    # ✅ Fetch product images efficiently
+    # ✅ Fetch Product Images Efficiently
     product_images_map = {}
     product_ids = [item.product_id for item in order_items]
 
@@ -329,7 +367,23 @@ def get_order_details(order_id: int, db: Session = Depends(get_db), current_user
             product_images_map[img.product_id] = []
         product_images_map[img.product_id].append({"id": img.id, "image_url": img.image_url})
 
-    # ✅ Construct Order Items Response (Now includes created_at & updated_at)
+    # ✅ Fetch Address Details (Assuming `order.address_id` exists)
+    address = db.query(Address).filter(Address.id == order.address_id).first()
+
+    address_response = {
+        "id": address.id if address else None,
+        "universal_user_id": address.universal_user_id if address else None,
+        "full_name": address.full_name if address else None,
+        "contact_number": address.contact_number if address else None,
+        "address_line": address.address_line if address else None,
+        "landmark": address.landmark if address else None,
+        "city": address.city if address else None,
+        "state": address.state if address else None,
+        "pincode": address.pincode if address else None,
+        "is_default": address.is_default if address else False
+    } if address else None
+
+    # ✅ Construct Order Items Response
     order_items_response = [
         {
             "id": item.id,
@@ -338,29 +392,31 @@ def get_order_details(order_id: int, db: Session = Depends(get_db), current_user
             "quantity": item.quantity,
             "price": item.price,
             "status": item.status,
-            "cancellation_reason": item.cancellation_reason,  # ✅ Include reason
-            "created_at": item.created_at,  # ✅ Added created_at field
-            "updated_at": item.updated_at,  # ✅ Added updated_at field
+            "cancellation_reason": item.cancellation_reason,
+            "created_at": item.created_at,
+            "updated_at": item.updated_at,
             "product": {
                 "id": item.product.id,
                 "name": item.product.name,
                 "description": item.product.description,
                 "price": item.product.price,
-                "images": product_images_map.get(item.product.id, [])  # ✅ Default to empty list if no images exist
+                "images": product_images_map.get(item.product.id, [])
             }
         }
         for item in order_items
     ]
 
-    # ✅ Final Order Response
+    # ✅ Final Order Response (Includes Address)
     return {
         "id": order.id,
         "universal_user_id": order.universal_user_id,
         "total_amount": order.total_amount,
         "created_at": order.created_at,
         "updated_at": order.updated_at,
-        "order_items": order_items_response  # ✅ Includes status in OrderItem instead of Order
+        "order_items": order_items_response,
+        "address": address_response  # ✅ Added Address Information
     }
+
 
 
 @router.put("/cancel/{order_item_id}", summary="User/NGO: Cancel an order item with reason")
@@ -390,6 +446,11 @@ def cancel_order_item(
         product = db.query(Product).filter(Product.id == order_item.product_id, Product.universal_user_id == current_user.id).first()
         if not product:
             raise HTTPException(status_code=403, detail="You can only cancel your own products.")
+
+    # ✅ Restore stock if the order item is being canceled
+    product = db.query(Product).filter(Product.id == order_item.product_id).first()
+    if product:
+        product.stock += order_item.quantity  # ✅ Add back the quantity to stock
 
     # ✅ Update order item status & store cancellation reason
     order_item.status = OrderStatus.cancelled.value

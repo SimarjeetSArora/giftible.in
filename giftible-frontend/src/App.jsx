@@ -11,7 +11,9 @@ import UserRegister from "./pages/register/UserRegister";
 import NGORegister from "./pages/register/NGORegister";
 import AdminRegister from "./pages/register/AdminRegister";
 import NGODashboard from "./pages/ngo/NGODashboard";
+import NGOAnalytics from "./pages/ngo/NGOAnalytics";
 import AdminDashboard from "./pages/admin/AdminDashboard";
+import AdminAnalytics from "./pages/admin/AdminAnalytics";
 import PrivateRoute from "./components/PrivateRoute";
 import NGOApproval from "./pages/admin/ngos/NGOApproval";
 import ProductList from "./pages/product/ProductList";
@@ -68,6 +70,8 @@ import NGOManageProducts from "./pages/ngo/product/NGOManageProducts";
 import NGOProductDetails from "./pages/ngo/product/NGOProductDetails";
 import NGOEditProduct from "./pages/ngo/product/NGOEditProduct";
 import Wishlist from "./pages/user/Wishlist";
+import VerifyMail from "./pages/VerifyMail";
+import VerifyContact from "./pages/VerifyContact";
 
 import KeyboardNavigationProvider from "./accessibility/KeyboardNavigationProvider";
 
@@ -107,6 +111,8 @@ function App() {
             <Route path="/forgot-password" element={<ForgotPassword />} />
             <Route path="/reset-password" element={<ResetPassword />} />
             <Route path="/search" element={<SearchResults />} />
+            <Route path="/verify-email/:user_id" element={<VerifyMail />} />
+            <Route path="/verify-contact/:user_id" element={<VerifyContact />} />
 
             {/* Protected Routes */}
             <Route element={<PrivateRoute allowedRoles={["user"]} />}>
@@ -128,6 +134,7 @@ function App() {
             <Routes>
             <Route element={<PrivateRoute allowedRoles={["ngo"]} />}>
               <Route path="/dashboard/ngo" element={<NGODashboard />} />
+              <Route path="/ngo/analytics" element={<NGOAnalytics />} />
               <Route path="/ngo/products/add" element={<AddProduct />} />
               <Route path="/ngo/products/status" element={<ManageProducts />} />
               <Route path="/ngo/orders/manage" element={<NGOOrderManagement />} />
@@ -146,6 +153,7 @@ function App() {
             
             <Route element={<PrivateRoute allowedRoles={["admin"]} />}>
               <Route path="/dashboard/admin" element={<AdminDashboard />} />
+              <Route path="/admin/analytics" element={<AdminAnalytics />} />
               <Route path="/dashboard/admin/ngos" element={<NGOApproval />} />
               <Route path="/admin/products/approve" element={<ProductApproval />} />
               <Route path="/admin/create-coupon" element={<CreateCoupon />} />

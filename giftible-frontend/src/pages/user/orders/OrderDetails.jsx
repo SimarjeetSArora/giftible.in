@@ -19,6 +19,8 @@ import {
   MenuItem,
   Select,
   Snackbar,
+  Rating,
+  TextField, 
 } from "@mui/material";
 import { useParams, useNavigate } from "react-router-dom";
 import { fetchOrderDetails } from "../../../services/orderService";
@@ -37,6 +39,10 @@ function OrderDetails() {
   const [selectedOrderItemId, setSelectedOrderItemId] = useState(null);
   const [cancelReason, setCancelReason] = useState("");
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "success" });
+  const [rateDialogOpen, setRateDialogOpen] = useState(false);
+  const [rating, setRating] = useState(0);
+  const [reviewComment, setReviewComment] = useState("");
+  const [reviewingOrderItemId, setReviewingOrderItemId] = useState(null);
 
   const cancellationReasons = [
     "Ordered by mistake",
@@ -61,6 +67,69 @@ function OrderDetails() {
 
     getOrderDetails();
   }, [orderId]);
+
+  const handleSubmitReview = async () => {
+    console.log("📢 Submitting review...");
+
+    // ✅ Ensure valid order item
+    if (!reviewingOrderItemId) {
+        console.error("❌ Invalid order item! Order Item ID:", reviewingOrderItemId);
+        setSnackbar({ open: true, message: "Invalid order item!", severity: "error" });
+        return;
+    }
+
+    // ✅ Ensure rating is at least 1
+    if (!rating || rating < 1) {
+        console.warn("⚠️ Invalid rating selected:", rating);
+        setSnackbar({ open: true, message: "Please select a valid rating!", severity: "warning" });
+        return;
+    }
+
+    console.log("✅ Review Details:", {
+        order_item_id: reviewingOrderItemId,
+        item_id: reviewingOrderItemId, // Fetching item ID for reference
+        rating,
+        comment: reviewComment || "(No comment provided)",
+    });
+
+    try {
+        console.log("🔄 Sending API request to:", `${API_BASE_URL}/reviews/`);
+        
+        const response = await axiosInstance.post(`${API_BASE_URL}/reviews/`, {
+            order_item_id: reviewingOrderItemId,
+            rating,
+            comment: reviewComment || "", // ✅ Allow empty comment
+        });
+
+        console.log("✅ Review submitted successfully! Response:", response.data);
+        console.log("📌 Submitted for Order Item ID:", reviewingOrderItemId);
+
+        // ✅ Update order state only if API succeeds
+        setOrder((prevOrder) => {
+            console.log("🔄 Updating state for order_items...");
+            return {
+                ...prevOrder,
+                order_items: prevOrder.order_items.map((item) =>
+                    item.id === reviewingOrderItemId ? { ...item, has_review: true } : item
+                ),
+            };
+        });
+
+        setSnackbar({ open: true, message: "Review submitted successfully!", severity: "success" });
+        
+        console.log("✅ Closing rating dialog...");
+        setRateDialogOpen(false); // ✅ Close dialog only on success
+
+    } catch (error) {
+        console.error("❌ Error submitting review:", error);
+        console.log("⚠️ Order Item ID:", reviewingOrderItemId); // Log item ID even if an error occurs
+        setSnackbar({ open: true, message: "Failed to submit review.", severity: "error" });
+    }
+};
+
+  
+  
+
 
   // ❌ Handle Cancel Order API Call
   const handleCancelOrder = async () => {
@@ -121,7 +190,7 @@ function OrderDetails() {
       {/* 🧾 Order Info */}
       <Paper elevation={3} sx={{ p: 3, borderRadius: "12px", boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)" }}>
         <Typography variant="h4" sx={{ fontWeight: "bold", color: "#6A4C93", textAlign: "center" }}>
-          🧾 Order Details
+          Order Details
         </Typography>
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6"><strong>Order ID: #{order.id}</strong></Typography>
@@ -180,22 +249,42 @@ function OrderDetails() {
                 <Typography variant="subtitle2" sx={{ mt: 1, fontWeight: "bold", color: item.status === "Cancelled" ? "red" : "#F5B800" }}>
                   Status: {item.status || "Pending"}
                 </Typography>
+                <Box display="flex" justifyContent="space-between" width="100%">
+  {/* 🚀 Cancel Order Button (Left) */}
+  {item.status !== "Cancelled" && item.status !== "Shipped" && item.status !== "Delivered" && (
+  <Button
+    variant="contained"
+    color="error"
+    sx={{ mt: 2 }}
+    onClick={(e) => {
+      e.stopPropagation();
+      setSelectedOrderItemId(item.id);
+      setCancelDialogOpen(true);
+    }}
+  >
+    Cancel Order
+  </Button>
+)}
 
-                {/* 🚀 Cancel Order Button */}
-                {item.status !== "Cancelled" && (
-                  <Button
-                    variant="contained"
-                    color="error"
-                    sx={{ mt: 2 }}
-                    onClick={(e) => {
-                      e.stopPropagation();
-                      setSelectedOrderItemId(item.id);
-                      setCancelDialogOpen(true);
-                    }}
-                  >
-                    Cancel Order
-                  </Button>
-                )}
+
+  {/* ⭐ Rate Now Button (Right) */}
+  {item.status === "Delivered" && !item.has_review && (
+    <Button
+      variant="contained"
+      color="primary"
+      sx={{ mt: 2 }}
+      onClick={(e) => {
+        e.stopPropagation();
+        setReviewingOrderItemId(item.id);
+        setRateDialogOpen(true);
+      }}
+    >
+      Rate Now
+    </Button>
+  )}
+</Box>
+
+
               </CardContent>
             </Card>
           </Grid>
@@ -204,6 +293,28 @@ function OrderDetails() {
 
        
  
+      <Dialog open={rateDialogOpen} onClose={() => setRateDialogOpen(false)}>
+  <DialogTitle>Rate This Product</DialogTitle>
+  <DialogContent>
+    <Typography>Select a Rating:</Typography>
+    <Rating value={rating} onChange={(e, newValue) => setRating(newValue)} precision={1} size="large" />
+    <TextField
+      label="Write a Review (Optional)"
+      multiline
+      rows={3}
+      fullWidth
+      variant="outlined"
+      sx={{ mt: 2 }}
+      value={reviewComment}
+      onChange={(e) => setReviewComment(e.target.value)}
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setRateDialogOpen(false)}>Close</Button>
+    <Button onClick={handleSubmitReview} color="primary">Submit</Button>
+  </DialogActions>
+</Dialog>
+
 
       {/* ❌ Cancel Order Dialog */}
       <Dialog open={cancelDialogOpen} onClose={() => setCancelDialogOpen(false)}>
@@ -227,11 +338,36 @@ function OrderDetails() {
       {/* ✅ Snackbar Notifications */}
       <Snackbar open={snackbar.open} autoHideDuration={3000} onClose={() => setSnackbar({ ...snackbar, open: false })} message={snackbar.message} severity={snackbar.severity} />
     
+      
       <Divider sx={{ my: 4 }} />
+
+      
+      {/* 📍 Delivery Address */}
+{order.address && (
+  <Paper elevation={3} sx={{ p: 3, mb: 3, borderRadius: "12px", boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)" }}>
+    <Typography variant="h5" sx={{ fontWeight: "bold", color: "#6A4C93" }}>
+      Delivery Address:
+    </Typography>
+    <Divider sx={{ my: 2 }} />
+    <Typography variant="h6"><strong>{order.address.full_name}</strong></Typography>
+    <Typography variant="body1">📞 {order.address.contact_number}</Typography>
+    <Typography variant="body1">{order.address.address_line}</Typography>
+    {order.address.landmark && <Typography variant="body2">🛑 Landmark: {order.address.landmark}</Typography>}
+    <Typography variant="body1">{order.address.city}, {order.address.state} - {order.address.pincode}</Typography>
+  </Paper>
+)}
+
+      
+      
+      <Divider sx={{ my: 4 }} />
+
+
+
+
         {/* 💰 Order Summary */}
         <Paper elevation={3} sx={{ p: 3, borderRadius: "12px", boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)" }}>
         <Typography variant="h5" sx={{ fontWeight: "bold", color: "#6A4C93" }}>
-          💰 Order Summary:
+          Order Summary:
         </Typography>
         <Divider sx={{ my: 2 }} />
         <Typography variant="h6">
@@ -239,6 +375,9 @@ function OrderDetails() {
         </Typography>
       </Paper>
     
+
+     
+
     </Container>
     
   );

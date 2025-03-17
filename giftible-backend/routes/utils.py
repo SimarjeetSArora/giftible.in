@@ -14,6 +14,7 @@ from fastapi import HTTPException
 import smtplib
 from email.mime.text import MIMEText
 from twilio.rest import Client
+from email.mime.multipart import MIMEMultipart
 
 # 🔐 Load environment variables
 load_dotenv()
@@ -160,7 +161,7 @@ def send_contact_verification_link(contact_number: str, user_id: int):
         client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
 
         # Generate the verification link
-        verification_link = f"{BASE_URL}/verify-contact/{user_id}"
+        verification_link = f"http://giftible.in/verify-contact/{user_id}"
 
         message_body = f"Verify your phone number for Giftible: {verification_link}"
 
@@ -176,3 +177,36 @@ def send_contact_verification_link(contact_number: str, user_id: int):
     except Exception as e:
         print(f"❌ Error sending verification SMS: {e}")
         return {"error": "Failed to send verification SMS. Please try again."}
+
+
+
+
+def send_forgot_password_mail(to_email: str, subject: str, body: str):
+    """Sends a password reset email."""
+    
+    SMTP_SERVER = os.getenv("SMTP_SERVER", "smtp.gmail.com")
+    SMTP_PORT = int(os.getenv("SMTP_PORT", 587))
+    SENDER_EMAIL = os.getenv("SMTP_EMAIL")
+    SENDER_PASSWORD = os.getenv("SMTP_PASSWORD")
+
+    sender_email = SENDER_EMAIL
+    receiver_email = to_email
+
+    msg = MIMEMultipart()
+    msg["From"] = sender_email
+    msg["To"] = receiver_email
+    msg["Subject"] = subject
+    msg.attach(MIMEText(body, "plain"))
+
+    try:
+        server = smtplib.SMTP(SMTP_SERVER, SMTP_PORT)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        server.sendmail(sender_email, receiver_email, msg.as_string())
+        server.quit()
+
+        print(f"✅ Password reset email sent to {receiver_email}")
+
+    except Exception as e:
+        print(f"❌ Failed to send email: {e}")
+        raise HTTPException(status_code=500, detail="Error sending password reset email.")

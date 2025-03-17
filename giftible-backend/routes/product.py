@@ -1,7 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Form, Query
 from sqlalchemy.orm import Session, joinedload
 from database import get_db
-from models import Product, ProductImage, Category, UniversalUser, NGO, OrderItem
+from models import Product, ProductImage, Category, UniversalUser, NGO, OrderItem, Review
 from typing import List, Optional
 import shutil
 import os
@@ -49,6 +49,10 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
         raise HTTPException(status_code=401, detail="Invalid or expired token.")
 
 
+
+from sqlalchemy.sql import func
+from sqlalchemy.orm import joinedload
+from sqlalchemy import or_
 
 @router.get("/browse", summary="Browse products with filters")
 def browse_products(
@@ -145,6 +149,15 @@ def browse_products(
     total_count = query.count()
     products = query.limit(limit).offset(offset).all()
 
+    # ✅ Fetch Average Ratings for Each Product
+    product_ids = [product.id for product in products]
+    ratings_query = db.query(
+        Review.product_id, func.avg(Review.rating).label("average_rating")
+    ).filter(Review.product_id.in_(product_ids)).group_by(Review.product_id).all()
+
+    # ✅ Convert Ratings to Dictionary {product_id: avg_rating}
+    ratings_map = {r.product_id: round(r.average_rating, 1) for r in ratings_query}
+
     # ✅ Corrected response format with `universal_user_id`
     return {
         "message": "✅ Products fetched successfully" if products else "⚠️ No products found.",
@@ -158,7 +171,11 @@ def browse_products(
                 "is_approved": product.is_approved,
                 "is_live": product.is_live,
                 "created_at": product.created_at.strftime("%Y-%m-%d"),
-                "category": {"id": product.category.id, "name": product.category.name} if product.category else None,
+                "average_rating": ratings_map.get(product.id, 5.0),  # ✅ Added Average Rating
+                "category": {
+                    "id": product.category.id,
+                    "name": product.category.name
+                } if product.category else None,
                 "ngo": {
                     "id": product.universal_user.ngo.id if product.universal_user.ngo else None,
                     "universal_user_id": product.universal_user.id,
@@ -172,6 +189,7 @@ def browse_products(
             for product in products
         ]
     }
+
 
 
 
@@ -498,20 +516,16 @@ def delete_product(
     return {"message": f"✅ Product '{product.name}' deleted successfully."}
 
 
+
 @router.get("/{product_id}", summary="User: View product details")
 def get_product_details(
     product_id: int,
     db: Session = Depends(get_db)
 ):
-    """Users can view detailed info of a product with its category and NGO details."""
+    """Users can view detailed info of a product with its category, NGO details, and reviews (including average rating)."""
 
     # 🔍 Fetch the product
-    product = (
-        db.query(Product)
-        .filter(Product.id == product_id)
-        .first()
-    )
-
+    product = db.query(Product).filter(Product.id == product_id).first()
     if not product:
         raise HTTPException(status_code=404, detail="Product not found or not available.")
 
@@ -541,6 +555,33 @@ def get_product_details(
         "contact_number": universal_user.contact_number if universal_user else None,
     } if ngo else None
 
+    # 🔍 Fetch Reviews for the Product
+    reviews = (
+        db.query(Review)
+        .join(UniversalUser, Review.universal_user_id == UniversalUser.id)
+        .filter(Review.product_id == product_id)
+        .all()
+    )
+
+    # 🔍 Calculate the average rating (returns None if no reviews exist)
+    average_rating = db.query(func.avg(Review.rating)).filter(Review.product_id == product_id).scalar()
+    average_rating = round(average_rating, 1) if average_rating is not None else 0.0  # ✅ Rounded to 1 decimal place
+
+    reviews_data = [
+        {
+            "id": review.id,
+            "rating": review.rating,
+            "comment": review.comment,
+            "created_at": review.created_at,
+            "user": {
+                "id": review.user.id,
+                "first_name": review.user.first_name,
+                "last_name": review.user.last_name,
+            }
+        }
+        for review in reviews
+    ]
+
     return {
         "product": {
             "id": product.id,
@@ -553,10 +594,18 @@ def get_product_details(
             "created_at": product.created_at,
             "updated_at": product.updated_at,
             "images": image_urls,
+            "average_rating": average_rating,  # ✅ Added Average Rating
         },
         "category": category_details,
         "ngo": ngo_details,
+        "reviews": {
+            "average_rating": average_rating,  # ✅ Also included here
+            "total_reviews": len(reviews),
+            "review_list": reviews_data  # ✅ List of all reviews
+        },
     }
+
+
 
 @router.get("/ngo/{universal_user_id}", summary="View all products by a specific NGO")
 def get_products_by_ngo(universal_user_id: int, db: Session = Depends(get_db)):

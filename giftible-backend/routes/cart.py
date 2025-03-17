@@ -35,7 +35,19 @@ def get_current_user(token: str = Depends(oauth2_scheme), db: Session = Depends(
 
 # ✅ Add Product to Cart
 @router.post("/add", summary="Add or update product in cart")
-def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_user: UniversalUser = Depends(get_current_user)):
+def add_to_cart(
+    item: CartItemCreate, 
+    db: Session = Depends(get_db), 
+    current_user: UniversalUser = Depends(get_current_user)
+):
+    product = db.query(Product).filter(Product.id == item.product_id).first()
+
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+
+    if product.stock < item.quantity:
+        raise HTTPException(status_code=400, detail="Not enough stock available")
+
     cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
     if not cart:
         cart = Cart(universal_user_id=current_user.id)
@@ -44,7 +56,10 @@ def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_use
         db.refresh(cart)
 
     cart_item = db.query(CartItem).filter(CartItem.cart_id == cart.id, CartItem.product_id == item.product_id).first()
+    
     if cart_item:
+        if product.stock < (cart_item.quantity + item.quantity):
+            raise HTTPException(status_code=400, detail="Not enough stock available")
         cart_item.quantity += item.quantity
     else:
         new_item = CartItem(cart_id=cart.id, product_id=item.product_id, quantity=item.quantity)
@@ -52,6 +67,7 @@ def add_to_cart(item: CartItemCreate, db: Session = Depends(get_db), current_use
 
     db.commit()
     return {"message": "Item added to cart."}
+
 
 
 # ✅ Fetch Cart Items

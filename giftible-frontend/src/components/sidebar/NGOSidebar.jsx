@@ -3,8 +3,8 @@ import {
   Drawer, List, ListItemButton, ListItemText, ListItemIcon, Collapse, Box, Tooltip
 } from "@mui/material";
 import {
-  ExpandLess, ExpandMore, People, Category, LocalOffer, Notifications,
-  ShoppingCart, Dashboard, Storefront, Person, CheckCircle, PlaylistAddCheck, Assignment, BarChart, AttachMoney
+  ExpandLess, ExpandMore, Category, ShowChart,
+  ShoppingCart, Dashboard, Storefront, CheckCircle, PlaylistAddCheck, BarChart, AttachMoney
 } from "@mui/icons-material";
 import { NavLink, useLocation } from "react-router-dom";
 
@@ -67,6 +67,14 @@ const NGOSidebar = ({ open }) => {
             </ListItemButton>
           </Tooltip>
 
+
+          {/* Analytics */}
+          <Tooltip title={!open ? "Analytics" : ""} placement="right">
+            <ListItemButton component={NavLink} to="/ngo/analytics" selected={location.pathname === "/ngo/analytics"}>
+              <ListItemIcon sx={{ color: "#F5B800" }}><ShowChart /></ListItemIcon>
+              {open && <ListItemText primary="Analytics" />}
+            </ListItemButton>
+          </Tooltip>
           
           
           {/* Products (Collapsible) */}

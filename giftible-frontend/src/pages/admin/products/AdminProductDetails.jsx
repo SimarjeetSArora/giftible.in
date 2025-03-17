@@ -16,8 +16,13 @@ import {
   DialogContent,
   DialogTitle,
   Avatar,
+  Rating,
+  IconButton,
 } from "@mui/material";
+import { Delete } from "@mui/icons-material";
+
 import API_BASE_URL from "../../../config";
+
 
 const AdminProductDetails = () => {
   const { productId } = useParams();
@@ -27,6 +32,9 @@ const AdminProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "error" });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(5); // Default 5 for unrated products
+
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -41,6 +49,12 @@ const AdminProductDetails = () => {
         setProduct(productData);
         setSelectedImage(productData.product.images?.[0]?.image_url || "");
         setLoading(false);
+
+         // ✅ Store average rating (Set default 5 if no rating exists)
+         setAverageRating(response.data.product.average_rating ?? 5);
+         // ✅ Store reviews in state
+         setReviews(response.data.reviews.review_list || []);
+
       } catch (error) {
         console.error("Error fetching product details:", error);
         setSnackbar({ open: true, message: "Failed to fetch product details", severity: "error" });
@@ -54,6 +68,21 @@ const AdminProductDetails = () => {
   const handleSnackbarClose = () => setSnackbar({ ...snackbar, open: false });
 
   const handleEditProduct = () => navigate(`/admin/edit/product/${productId}`);
+
+  const handleDeleteReview = async (reviewId) => {
+    try {
+      await axiosInstance.delete(`${API_BASE_URL}/reviews/${reviewId}`);
+      
+      // ✅ Remove deleted review from state
+      setReviews((prevReviews) => prevReviews.filter(review => review.id !== reviewId));
+  
+      setSnackbar({ open: true, message: "Review deleted successfully!", severity: "success" });
+    } catch (error) {
+      console.error("Error deleting review:", error);
+      setSnackbar({ open: true, message: "Failed to delete review.", severity: "error" });
+    }
+  };
+  
 
   const handleDeleteProduct = async () => {
     try {
@@ -142,6 +171,26 @@ const AdminProductDetails = () => {
           {/* 📝 Product Details + Category */}
           <Grid item xs={12} md={6}>
   <Paper elevation={3} sx={{ p: 3, backgroundColor: "#FFFFFF", borderRadius: 2 }}>
+
+  <Box 
+  display="flex" 
+  alignItems="center" 
+  gap={1} 
+  mb={1}
+  sx={{
+    border: "2px solid #6A4C93", // ✅ Purple Border
+    borderRadius: "8px", // ✅ Rounded corners
+    padding: "4px 8px", // ✅ Padding inside the box
+    bgcolor: "background.paper", // ✅ Light background
+    boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.15)", // ✅ Subtle shadow
+  }}
+>
+  <Rating value={averageRating} precision={0.1} readOnly />
+  <Typography variant="body2" fontWeight="bold" color="text.secondary">
+    ({averageRating?.toFixed(1)})
+  </Typography>
+</Box>
+
     <Typography variant="h6" sx={{ color: "#6A4C93" }}>
       Price: ₹{product.product.price}
     </Typography>
@@ -218,6 +267,54 @@ const AdminProductDetails = () => {
             </Box>
           </Paper>
         )}
+
+
+        {/* 📝 User Reviews Section */}
+{reviews.length > 0 ? (
+  <Box mt={4}>
+    <Typography variant="h5" fontWeight="bold">User Reviews</Typography>
+
+    {reviews.map((review, index) => (
+      <Paper 
+        key={index} 
+        sx={{ 
+          p: 2, 
+          mt: 2, 
+          borderRadius: "12px", 
+          boxShadow: 2, 
+          display: "flex", 
+          justifyContent: "space-between", 
+          alignItems: "center" 
+        }}
+      >
+        <Box display="flex" alignItems="center" gap={2}>
+          <Avatar>{review.user.first_name[0]}</Avatar>
+          <Box>
+            <Typography fontWeight="bold">
+              {review.user.first_name} {review.user.last_name}
+            </Typography>
+            <Rating value={review.rating} precision={0.1} readOnly />
+          </Box>
+        </Box>
+        <Typography mt={1} color="text.secondary">{review.comment || "No Comment"}</Typography>
+
+        {/* 🗑️ Delete Button (Visible only for Admins) */}
+          <IconButton 
+            onClick={() => handleDeleteReview(review.id)} 
+            color="error"
+            sx={{ ml: 2 }}
+          >
+            <Delete />
+          </IconButton>
+
+      </Paper>
+    ))}
+  </Box>
+) : (
+  <Typography mt={4} color="text.secondary">No reviews yet.</Typography>
+)}
+
+
       </Box>
 
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>

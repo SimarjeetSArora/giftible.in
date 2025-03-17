@@ -59,6 +59,11 @@ const AdminOrderManagement = () => {
   const [endDate, setEndDate] = useState(null);
   const theme = useTheme();
   const colors = getColors(theme.palette.mode);
+  const [productList, setProductList] = useState(null);
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [selectedOrderAddress, setSelectedOrderAddress] = useState(null);
+  
 
   const [totalPages, setTotalPages] = useState(1);
 
@@ -120,6 +125,15 @@ const fetchNGOOrders = async () => {
 };
 
 
+const handleRowClick = (order) => {
+  if (!order.delivery_address) {
+    setSnackbar({ open: true, message: "No address available for this order", severity: "warning" });
+    return;
+  }
+
+  setSelectedOrderAddress(order.delivery_address);
+  setAddressDialogOpen(true);
+};
 
   
   
@@ -286,7 +300,7 @@ const handleDownloadPDF = () => {
   return (
     <Container maxWidth="lg" sx={{ minHeight: "100vh", py: 4 }}>
       <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold", color: "#6A4C93" }}>
-        📦 NGO Order Management
+        Order Management
       </Typography>
 
       <Box display="flex" gap={2} mb={3}>
@@ -401,9 +415,13 @@ const handleDownloadPDF = () => {
         </TableRow>
       ) : (
         filteredOrders
-          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
           .map((item) => (
-            <TableRow key={item.id}>
+            <TableRow 
+        key={item.id}
+        hover
+        sx={{ cursor: "pointer" }}
+        onClick={() => handleRowClick(item)}  // ✅ Open dialog when row is clicked
+      >
               <TableCell>{item.orderId}</TableCell>
               <TableCell>{item.id}</TableCell>
               <TableCell>{item.product?.name || "Unknown Product"}</TableCell>
@@ -457,6 +475,27 @@ const handleDownloadPDF = () => {
   </Button>
 </Box>
 
+<Dialog open={addressDialogOpen} onClose={() => setAddressDialogOpen(false)}>
+  <DialogTitle>📍 Delivery Address</DialogTitle>
+  <DialogContent dividers>
+    {selectedOrderAddress ? (
+      <Box>
+        <Typography><strong>Full Name:</strong> {selectedOrderAddress.full_name}</Typography>
+        <Typography><strong>Contact Number:</strong> {selectedOrderAddress.contact_number}</Typography>
+        <Typography><strong>Address:</strong> {selectedOrderAddress.address_line}</Typography>
+        <Typography><strong>Landmark:</strong> {selectedOrderAddress.landmark || "N/A"}</Typography>
+        <Typography><strong>City:</strong> {selectedOrderAddress.city}</Typography>
+        <Typography><strong>State:</strong> {selectedOrderAddress.state}</Typography>
+        <Typography><strong>Pincode:</strong> {selectedOrderAddress.pincode}</Typography>
+      </Box>
+    ) : (
+      <Typography>No address details available.</Typography>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setAddressDialogOpen(false)}>Close</Button>
+  </DialogActions>
+</Dialog>
 
 
       

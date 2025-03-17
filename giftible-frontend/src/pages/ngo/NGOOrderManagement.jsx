@@ -62,6 +62,9 @@ const NGOOrderManagement = () => {
   const [productList, setProductList] = useState([]);
   const theme = useTheme();
   const colors = getColors(theme.palette.mode);
+  const [addressDialogOpen, setAddressDialogOpen] = useState(false);
+  const [selectedOrderAddress, setSelectedOrderAddress] = useState(null);
+  
 
   const [totalPages, setTotalPages] = useState(1);
 
@@ -124,7 +127,17 @@ const fetchNGOOrders = async () => {
 
 
 
-  
+const handleRowClick = (order) => {
+  if (!order.delivery_address) {
+    setSnackbar({ open: true, message: "No address available for this order", severity: "warning" });
+    return;
+  }
+
+  setSelectedOrderAddress(order.delivery_address);
+  setAddressDialogOpen(true);
+};
+
+
   
 const handleDownloadPDF = () => {
   if (!filteredOrders.length) {
@@ -327,7 +340,7 @@ const handleDownloadPDF = () => {
   return (
     <Container maxWidth="lg" sx={{ minHeight: "100vh", py: 4 }}>
       <Typography variant="h4" sx={{ mb: 3, fontWeight: "bold", color: "#6A4C93" }}>
-        📦 NGO Order Management
+        Order Management
       </Typography>
 
       <Box display="flex" gap={2} mb={3}>
@@ -436,59 +449,66 @@ const handleDownloadPDF = () => {
       </TableRow>
     </TableHead>
     <TableBody>
-      {filteredOrders.length === 0 ? (
-        <TableRow>
-          <TableCell colSpan={9} align="center">No orders found.</TableCell>
-        </TableRow>
-      ) : (
-        filteredOrders
-          .slice((currentPage - 1) * itemsPerPage, currentPage * itemsPerPage)
-          .map((item) => (
-            <TableRow key={item.id}>
-              <TableCell>{item.orderId}</TableCell>
-              <TableCell>{item.id}</TableCell>
-              <TableCell>{item.product?.name || "Unknown Product"}</TableCell>
-              <TableCell>{item.quantity}</TableCell>
-              <TableCell>₹{item.price?.toFixed(2) || "0.00"}</TableCell>
-              <TableCell>
-                <Chip label={item.status} color={getStatusColor(item.status)} />
-              </TableCell>
-              <TableCell>
-                {item.status === "Cancelled" ? (
-                  <Tooltip title={item.cancellation_reason || "No reason provided"}>
-                    <Typography noWrap>{item.cancellation_reason || "Not provided"}</Typography>
-                  </Tooltip>
-                ) : "-"}
-              </TableCell>
-              <TableCell>
-                {item.orderDate ? dayjs(item.orderDate).format("DD/MM/YYYY") : "-"} {/* ✅ Format Date */}
-              </TableCell>
-              <TableCell>
-                <FormControl size="small" sx={{ minWidth: 120, mr: 2 }}>
-                  <Select
-                    value={item.status}
-                    onChange={(e) => handleStatusUpdate(item.id, e.target.value)}
-                    disabled={item.status === "Delivered" || item.status === "Cancelled"}
-                  >
-                    <MenuItem value="Pending">Pending</MenuItem>
-                    <MenuItem value="Processing">Processing</MenuItem>
-                    <MenuItem value="Shipped">Shipped</MenuItem>
-                    <MenuItem value="Delivered">Delivered</MenuItem>
-                  </Select>
-                </FormControl>
-                <Button
-                  variant="contained"
-                  color="error"
-                  onClick={() => setCancelDialog({ open: true, orderItemId: item.id, reason: "" })}
-                  disabled={item.status === "Shipped" || item.status === "Delivered" || item.status === "Cancelled"}
-                >
-                  Cancel
-                </Button>
-              </TableCell>
-            </TableRow>
-          ))
-      )}
-    </TableBody>
+  {filteredOrders.length === 0 ? (
+    <TableRow>
+      <TableCell colSpan={9} align="center">No orders found.</TableCell>
+    </TableRow>
+  ) : (
+    filteredOrders.map((item) => (
+      <TableRow 
+        key={item.id}
+        hover
+        sx={{ cursor: "pointer" }}
+        onClick={() => handleRowClick(item)}  // ✅ Open dialog when row is clicked
+      >
+        <TableCell>{item.orderId}</TableCell>
+        <TableCell>{item.id}</TableCell>
+        <TableCell>{item.product?.name || "Unknown Product"}</TableCell>
+        <TableCell>{item.quantity}</TableCell>
+        <TableCell>₹{item.price?.toFixed(2) || "0.00"}</TableCell>
+        <TableCell>
+          <Chip label={item.status} color={getStatusColor(item.status)} />
+        </TableCell>
+        <TableCell>
+          {item.status === "Cancelled" ? (
+            <Tooltip title={item.cancellation_reason || "No reason provided"}>
+              <Typography noWrap>{item.cancellation_reason || "Not provided"}</Typography>
+            </Tooltip>
+          ) : "-"}
+        </TableCell>
+        <TableCell>
+          {item.orderDate ? dayjs(item.orderDate).format("DD/MM/YYYY") : "-"}
+        </TableCell>
+        <TableCell>
+          <FormControl size="small" sx={{ minWidth: 120, mr: 2 }}>
+            <Select
+              value={item.status}
+              onChange={(e) => handleStatusUpdate(item.id, e.target.value)}
+              disabled={item.status === "Delivered" || item.status === "Cancelled"}
+            >
+              <MenuItem value="Pending">Pending</MenuItem>
+              <MenuItem value="Processing">Processing</MenuItem>
+              <MenuItem value="Shipped">Shipped</MenuItem>
+              <MenuItem value="Delivered">Delivered</MenuItem>
+            </Select>
+          </FormControl>
+          <Button
+            variant="contained"
+            color="error"
+            onClick={(e) => {
+              e.stopPropagation(); // Prevents row click from opening address dialog
+              setCancelDialog({ open: true, orderItemId: item.id, reason: "" });
+            }}
+            disabled={item.status === "Shipped" || item.status === "Delivered" || item.status === "Cancelled"}
+          >
+            Cancel
+          </Button>
+        </TableCell>
+      </TableRow>
+    ))
+  )}
+</TableBody>
+
   </Table>
 </TableContainer>
 
@@ -530,6 +550,32 @@ const handleDownloadPDF = () => {
           <Button color="error" variant="contained" onClick={handleCancelOrder}>Confirm</Button>
         </DialogActions>
       </Dialog>
+
+
+
+      <Dialog open={addressDialogOpen} onClose={() => setAddressDialogOpen(false)}>
+  <DialogTitle>📍 Delivery Address</DialogTitle>
+  <DialogContent dividers>
+    {selectedOrderAddress ? (
+      <Box>
+        <Typography><strong>Full Name:</strong> {selectedOrderAddress.full_name}</Typography>
+        <Typography><strong>Contact Number:</strong> {selectedOrderAddress.contact_number}</Typography>
+        <Typography><strong>Address:</strong> {selectedOrderAddress.address_line}</Typography>
+        <Typography><strong>Landmark:</strong> {selectedOrderAddress.landmark || "N/A"}</Typography>
+        <Typography><strong>City:</strong> {selectedOrderAddress.city}</Typography>
+        <Typography><strong>State:</strong> {selectedOrderAddress.state}</Typography>
+        <Typography><strong>Pincode:</strong> {selectedOrderAddress.pincode}</Typography>
+      </Box>
+    ) : (
+      <Typography>No address details available.</Typography>
+    )}
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setAddressDialogOpen(false)}>Close</Button>
+  </DialogActions>
+</Dialog>
+
+
     </Container>
   );
 };

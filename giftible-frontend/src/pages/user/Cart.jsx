@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from "react";
 import {
-  Container, Typography, Button, Box, Grid, IconButton, Paper, Divider,
+  Container, Typography, Button, Box, Grid, IconButton, Paper, Divider, Snackbar, Alert 
 } from "@mui/material";
 import { Add, Remove, Delete } from "@mui/icons-material";
 import { fetchCart, removeFromCart, clearCart, addToCart } from "../../services/cartService";
@@ -10,6 +10,8 @@ import { useNavigate } from "react-router-dom";
 function Cart() {
   const [cart, setCart] = useState([]);
   const navigate = useNavigate();
+  const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "info" });
+  
 
   const loadCart = async () => {
     try {
@@ -161,16 +163,36 @@ function Cart() {
             Clear Cart
           </Button>
           <Button
-            variant="contained"
-            sx={{
-              bgcolor: "#F5B800",
-              color: "#6A4C93",
-              "&:hover": { bgcolor: "#E0A700" },
-            }}
-            onClick={() => navigate("/checkout", { state: { cart } })}
-          >
-            Proceed to Checkout
-          </Button>
+  variant="contained"
+  sx={{
+    bgcolor: "#F5B800",
+    color: "#6A4C93",
+    "&:hover": { bgcolor: "#E0A700" },
+  }}
+  disabled={cart.some(item => item.outOfStock)} // ✅ Disable if out-of-stock items exist
+  onClick={() => {
+    if (cart.some(item => item.outOfStock)) {
+      setSnackbar({ open: true, message: "Some items are out of stock. Please update your cart.", severity: "error" });
+      return;
+    }
+    navigate("/checkout", { state: { cart } });
+  }}
+>
+  Proceed to Checkout
+</Button>
+
+{/* ✅ Snackbar Notification */}
+<Snackbar
+  open={snackbar.open}
+  autoHideDuration={3000}
+  onClose={() => setSnackbar({ open: false })}
+  anchorOrigin={{ vertical: "bottom", horizontal: "center" }}
+>
+  <Alert severity={snackbar.severity} onClose={() => setSnackbar({ open: false })}>
+    {snackbar.message}
+  </Alert>
+</Snackbar>
+
         </Box>
       </Box>
     </Container>

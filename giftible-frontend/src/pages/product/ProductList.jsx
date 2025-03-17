@@ -20,7 +20,8 @@ import {
   Snackbar,
   Alert,
   RadioGroup,
-  Radio 
+  Radio,
+  Rating 
 } from "@mui/material";
 import { Favorite, FavoriteBorder } from "@mui/icons-material"; // ❤️ Wishlist icons
 import ExpandMore from "@mui/icons-material/ExpandMore"; // ✅ Correct Import
@@ -416,70 +417,80 @@ const fetchProducts = async (location) => {
                   return (
 
 <Grid item xs={12} sm={6} md={4} key={product.id}>
-  <Card
-    sx={{
-      height: "100%",
-      display: "flex",
-      flexDirection: "column",
-      justifyContent: "space-between",
-      textDecoration: "none",
-      borderRadius: "12px",
-      boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
-      position: "relative", // ✅ Required for positioning the heart icon
-      cursor: "pointer", // ✅ Makes the card clickable
-      transition: "transform 0.3s ease-in-out",
-      "&:hover": { transform: "scale(1.03)" },
-    }}
-    onClick={() => navigate(`/products/${product.id}`)} // ✅ Make entire card clickable
-  >
-    {/* ❤️ Wishlist Icon */}
-    <Box
+
+<Card
   sx={{
-    position: "absolute",
-    top: 12,
-    right: 12,
-    borderRadius: "50%",
-    padding: "4px",
-    cursor: "pointer",
-    transition: "0.3s ease-in-out",
-    "&:hover": { transform: "scale(1.1)" }, // ✅ Hover effect
+    height: "100%",
+    display: "flex",
+    flexDirection: "column",
+    justifyContent: "space-between",
+    textDecoration: "none",
+    borderRadius: "12px",
+    boxShadow: "0px 4px 12px rgba(0, 0, 0, 0.1)",
+    position: "relative", // ✅ Required for positioning the heart icon
+    cursor: "pointer", // ✅ Makes the card clickable
+    transition: "transform 0.3s ease-in-out",
+    "&:hover": { transform: "scale(1.03)" },
   }}
-  onClick={(e) => {
-    e.stopPropagation(); // ✅ Prevent card navigation
-    handleWishlistToggle(product.id);
-  }}
+  onClick={() => navigate(`/products/${product.id}`)} // ✅ Make entire card clickable
 >
-  {wishlist.includes(product.id) ? (
-    <Favorite sx={{ color: "#F5B800" }} /> // 💛 Filled Heart (Golden Yellow)
-  ) : (
-    <FavoriteBorder sx={{ color: "#F5B800" }} /> // 🤍 Outlined Heart
-  )}
+  {/* ❤️ Wishlist Icon */}
+  <Box
+    sx={{
+      position: "absolute",
+      top: 12,
+      right: 12,
+      borderRadius: "50%",
+      padding: "4px",
+      cursor: "pointer",
+      transition: "0.3s ease-in-out",
+      "&:hover": { transform: "scale(1.1)" }, // ✅ Hover effect
+    }}
+    onClick={(e) => {
+      e.stopPropagation(); // ✅ Prevent card navigation
+      handleWishlistToggle(product.id);
+    }}
+  >
+    {wishlist.includes(product.id) ? (
+      <Favorite sx={{ color: "#F5B800" }} /> // 💛 Filled Heart (Golden Yellow)
+    ) : (
+      <FavoriteBorder sx={{ color: "#F5B800" }} /> // 🤍 Outlined Heart
+    )}
+  </Box>
+
+  {/* 🖼️ Product Image */}
+  <CardMedia
+    component="img"
+    height="280"
+    image={imageUrl}
+    alt={product.name}
+    sx={{
+      objectFit: "cover",
+      borderTopLeftRadius: "12px",
+      borderTopRightRadius: "12px",
+    }}
+  />
+
+  {/* 📄 Product Details */}
+  <CardContent>
+    {/* ⭐ Star Rating with Number */}
+    <Box display="flex" alignItems="center" gap={0.5}>
+  <Rating value={product.average_rating} precision={0.1} readOnly size="small" /> {/* 🔹 Small Stars */}
+  <Typography variant="caption" fontWeight="bold" color="text.secondary">
+    ({product.average_rating?.toFixed(1)}) {/* 🔢 Smaller Numeric Rating */}
+  </Typography>
 </Box>
 
 
-    {/* 🖼️ Product Image */}
-    <CardMedia
-      component="img"
-      height="280"
-      image={imageUrl}
-      alt={product.name}
-      sx={{
-        objectFit: "cover",
-        borderTopLeftRadius: "12px",
-        borderTopRightRadius: "12px",
-      }}
-    />
+    <Typography variant="h6" fontWeight="bold" color="text.primary">
+      {product.name}
+    </Typography>
+    <Typography variant="subtitle1" color="secondary">
+      ₹{product.price}
+    </Typography>
+  </CardContent>
+</Card>
 
-    {/* 📄 Product Details */}
-    <CardContent>
-      <Typography variant="h6" fontWeight="bold" color="text.primary">
-        {product.name}
-      </Typography>
-      <Typography variant="subtitle1" color="secondary">
-        ₹{product.price}
-      </Typography>
-    </CardContent>
-  </Card>
 </Grid>
 
                   );

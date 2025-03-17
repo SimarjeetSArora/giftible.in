@@ -16,6 +16,7 @@ import {
   DialogContent,
   DialogTitle,
   Avatar,
+  Rating,
 } from "@mui/material";
 import API_BASE_URL from "../../config";
 
@@ -27,6 +28,11 @@ const NGOProductDetails = () => {
   const [loading, setLoading] = useState(true);
   const [snackbar, setSnackbar] = useState({ open: false, message: "", severity: "error" });
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [inventoryDialogOpen, setInventoryDialogOpen] = useState(false);
+  const [newStock, setNewStock] = useState(product?.product.stock || "");  // Default stock
+  const [reviews, setReviews] = useState([]);
+  const [averageRating, setAverageRating] = useState(5); // Default 5 for unrated products
+  
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -38,9 +44,17 @@ const NGOProductDetails = () => {
           throw new Error("Invalid product response from server.");
         }
 
+
+
         setProduct(productData);
         setSelectedImage(productData.product.images?.[0]?.image_url || "");
         setLoading(false);
+
+         // ✅ Store average rating (Set default 5 if no rating exists)
+        setAverageRating(response.data.product.average_rating ?? 5);
+        // ✅ Store reviews in state
+        setReviews(response.data.reviews.review_list || []);
+
       } catch (error) {
         console.error("Error fetching product details:", error);
         setSnackbar({ open: true, message: "Failed to fetch product details", severity: "error" });
@@ -54,6 +68,35 @@ const NGOProductDetails = () => {
   const handleSnackbarClose = () => setSnackbar({ ...snackbar, open: false });
 
   const handleEditProduct = () => navigate(`/ngo/edit/product/${productId}`);
+
+  const handleUpdateInventory = async () => {
+    if (newStock < 0) {
+      setSnackbar({ open: true, message: "Stock cannot be negative.", severity: "warning" });
+      return;
+    }
+  
+    try {
+      const response = await axiosInstance.put(`${API_BASE_URL}/inventory/${productId}`, { stock: parseInt(newStock) });
+  
+      if (response.status === 200) {
+        setSnackbar({ open: true, message: "Stock updated successfully!", severity: "success" });
+  
+        // Close dialog and wait for snackbar to show before redirecting
+        setInventoryDialogOpen(false);
+  
+        // Wait for 1.5 seconds to show success message, then redirect
+        setTimeout(() => {
+          navigate("/ngo/products");
+        }, 1500);
+      }
+    } catch (error) {
+      console.error("Error updating inventory:", error);
+      setSnackbar({ open: true, message: "Failed to update inventory.", severity: "error" });
+    }
+  };
+  
+  
+
 
   const handleDeleteProduct = async () => {
     try {
@@ -136,6 +179,29 @@ const NGOProductDetails = () => {
           {/* 📝 Product Details + Category */}
           <Grid item xs={12} md={6}>
             <Paper elevation={3} sx={{ p: 3, backgroundColor: "#FFFFFF", borderRadius: 2 }}>
+
+              {/* ⭐ Product Rating */}
+              <Box 
+  display="flex" 
+  alignItems="center" 
+  gap={1} 
+  mb={1}
+  sx={{
+    border: "2px solid #6A4C93", // ✅ Purple Border
+    borderRadius: "8px", // ✅ Rounded corners
+    padding: "4px 8px", // ✅ Padding inside the box
+    bgcolor: "background.paper", // ✅ Light background
+    boxShadow: "0px 2px 6px rgba(0, 0, 0, 0.15)", // ✅ Subtle shadow
+  }}
+>
+  <Rating value={averageRating} precision={0.1} readOnly />
+  <Typography variant="body2" fontWeight="bold" color="text.secondary">
+    ({averageRating?.toFixed(1)})
+  </Typography>
+</Box>
+
+
+
               <Typography variant="h6" sx={{ color: "#6A4C93" }}>
                 Price: ₹{product.product.price}
               </Typography>
@@ -158,6 +224,19 @@ const NGOProductDetails = () => {
 
               {/* 🛠️ Edit & Delete Buttons */}
               <Box mt={3} display="flex" flexDirection="column" gap={2}>
+              <Button
+  variant="contained"
+  fullWidth
+  sx={{
+    backgroundColor: "#6A4C93", // Green for inventory updates
+    color: "#FFFFFF",
+    "&:hover": { backgroundColor: "#F5B800", color:"#6A4C93" },
+  }}
+  onClick={() => setInventoryDialogOpen(true)}
+>
+  Update Inventory
+</Button>
+
                 <Button
                   variant="contained"
                   fullWidth
@@ -180,8 +259,34 @@ const NGOProductDetails = () => {
                 </Button>
               </Box>
             </Paper>
+            
           </Grid>
+          
         </Grid>
+        {/* 📝 User Reviews Section */}
+{reviews.length > 0 ? (
+  <Box mt={4}>
+    <Typography variant="h5" fontWeight="bold">User Reviews</Typography>
+
+    {reviews.map((review, index) => (
+      <Paper key={index} sx={{ p: 2, mt: 2, borderRadius: "12px", boxShadow: 2 }}>
+        <Box display="flex" alignItems="center" gap={2}>
+          <Avatar>{review.user.first_name[0]}</Avatar>
+          <Box>
+            <Typography fontWeight="bold">
+              {review.user.first_name} {review.user.last_name}
+            </Typography>
+            <Rating value={review.rating} precision={0.1} readOnly />
+          </Box>
+        </Box>
+        <Typography mt={1} color="text.secondary">{review.comment || "No Comment"}</Typography>
+      </Paper>
+    ))}
+  </Box>
+) : (
+  <Typography mt={4} color="text.secondary">No reviews yet.</Typography>
+)}
+
       </Box>
 
       <Dialog open={deleteDialogOpen} onClose={() => setDeleteDialogOpen(false)}>
@@ -205,6 +310,33 @@ const NGOProductDetails = () => {
           {snackbar.message}
         </Alert>
       </Snackbar>
+
+      <Dialog open={inventoryDialogOpen} onClose={() => setInventoryDialogOpen(false)}>
+  <DialogTitle>Update Inventory</DialogTitle>
+  <DialogContent>
+    <Typography>Enter new stock quantity:</Typography>
+    <input
+      type="number"
+      value={newStock}
+      onChange={(e) => setNewStock(e.target.value)}
+      style={{
+        width: "100%",
+        padding: "10px",
+        fontSize: "16px",
+        marginTop: "10px",
+        borderRadius: "5px",
+        border: "1px solid #ccc"
+      }}
+    />
+  </DialogContent>
+  <DialogActions>
+    <Button onClick={() => setInventoryDialogOpen(false)}>Cancel</Button>
+    <Button onClick={handleUpdateInventory} color="primary">Update</Button>
+  </DialogActions>
+</Dialog>
+
+
+
     </Container>
   );
 };
