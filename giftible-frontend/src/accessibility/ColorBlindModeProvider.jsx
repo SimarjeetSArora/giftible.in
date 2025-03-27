@@ -17,8 +17,8 @@ const ColorBlindModeProvider = () => {
     <Box
       sx={{
         position: "fixed",
-        bottom: 10,
-        left: 10,
+        bottom: 80,
+        right: 20,
         background: "#6A4C93",
         color: "#FFFFFF",
         padding: "6px 8px",

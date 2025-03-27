@@ -77,7 +77,23 @@ def place_order(
 
         print("✅ Payment verified successfully!")
 
-        # ✅ Create a new order (No status field)
+        # ✅ Fetch the user's cart
+        user_cart = db.query(Cart).filter(Cart.universal_user_id == current_user.id).first()
+
+        if not user_cart:
+            print("⚠️ No cart found for this user.")
+            raise HTTPException(status_code=404, detail="No cart found for this user.")
+
+        # ✅ Fetch cart items linked to this cart
+        cart_items = db.query(CartItem).filter(CartItem.cart_id == user_cart.id).all()
+
+        if not cart_items:
+            print("⚠️ No items in the cart. Cannot proceed with order placement.")
+            raise HTTPException(status_code=400, detail="❌ Cannot place an empty order!")
+
+        print(f"🛒 Cart Items Found: {len(cart_items)}")
+
+        # ✅ Create a new order
         order = Order(
             universal_user_id=current_user.id,
             address_id=order_request.address_id,
@@ -89,23 +105,24 @@ def place_order(
         db.commit()
         db.refresh(order)
 
-        # ✅ Fetch cart items and assign order items dynamically
-        cart_items = db.query(CartItem).filter(CartItem.cart_id == current_user.id).all()
+        print(f"✅ Order ID: {order.id} created successfully!")
 
+        # ✅ Insert order items and update stock
         for item in cart_items:
             product = db.query(Product).filter(Product.id == item.product_id).first()
 
             if not product:
                 raise HTTPException(status_code=404, detail=f"Product with ID {item.product_id} not found")
 
-            # ✅ Check stock availability before placing the order
+            # ✅ Ensure stock is available
             if product.stock < item.quantity:
                 raise HTTPException(status_code=400, detail=f"❌ Not enough stock for {product.name}")
 
-            # ✅ Reduce stock after order placement
+            # ✅ Deduct stock
             product.stock -= item.quantity
+            print(f"⚡ Stock Updated | {product.name} Remaining: {product.stock}")
 
-            # ✅ Create OrderItem with status
+            # ✅ Create OrderItem
             order_item = OrderItem(
                 order_id=order.id,
                 product_id=item.product_id,
@@ -114,10 +131,21 @@ def place_order(
                 status="Pending"
             )
             db.add(order_item)
+            db.commit()  # Commit after adding each order item
+            db.refresh(order_item)
+            print(f"🛍️ OrderItem Added | Product: {product.name}, Quantity: {item.quantity}")
+
+        # ✅ Check cart items before deletion
+        cart_count_before = db.query(CartItem).filter(CartItem.cart_id == user_cart.id).count()
+        print(f"🔍 Cart Items Before Deletion: {cart_count_before}")
 
         # ✅ Clear user's cart after order is placed
-        db.query(CartItem).filter(CartItem.cart_id == current_user.id).delete()
+        db.query(CartItem).filter(CartItem.cart_id == user_cart.id).delete()
         db.commit()
+
+        # ✅ Check cart items after deletion
+        cart_count_after = db.query(CartItem).filter(CartItem.cart_id == user_cart.id).count()
+        print(f"🗑️ Cart Items After Deletion: {cart_count_after}")
 
         print(f"✅ Order placed with ID: {order.id} | Cart cleared.")
 
@@ -128,8 +156,9 @@ def place_order(
 
     except Exception as e:
         db.rollback()
-        print(f"❌ Error placing order: {e}")
+        print(f"❌ Order placement failed | Error: {e}")
         raise HTTPException(status_code=500, detail=f"Internal Server Error: {str(e)}")
+
 
 
 

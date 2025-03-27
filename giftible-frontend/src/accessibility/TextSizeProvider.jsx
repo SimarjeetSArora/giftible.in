@@ -24,8 +24,8 @@ const TextSizeProvider = () => {
     <Box
       sx={{
         position: "fixed",
-        bottom: 80, // Adjusted for better positioning
-        left: 10,
+        bottom: 145, // Adjusted for better positioning
+        right: 20,
         zIndex: 1100,
         display: "flex",
         alignItems: "center",

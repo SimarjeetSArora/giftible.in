@@ -50,8 +50,8 @@ const Footer = () => {
           <Paper
             sx={{
               position: "absolute",
-              bottom: 125,
-              right: 1274,
+              bottom: 182,
+              right: 1,
               p: 2,
               borderRadius: 2,
               boxShadow: 3,

@@ -312,7 +312,7 @@ def get_ngo_dashboard(
 
     # ✅ Live Products (Approved & Active Products)
     live_products = db.query(func.count(Product.id))\
-        .filter(Product.universal_user_id == ngo_id, Product.is_approved == True).scalar()
+        .filter(Product.universal_user_id == ngo_id, Product.is_live == True).scalar()
 
     # ✅ Pending Products (Waiting for Approval)
     pending_products = db.query(func.count(Product.id))\
