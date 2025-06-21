@@ -112,7 +112,7 @@ const fetchProducts = async (location) => {
 
       console.log("🔍 Fetching Products with Params:", requestParams);
 
-      const { data } = await axiosInstance.get("http://127.0.0.1:8000/products/browse", {
+      const { data } = await axiosInstance.get(`${API_BASE_URL}/products/browse`, {
           params: requestParams,
           paramsSerializer: (params) =>
               Object.keys(params)
