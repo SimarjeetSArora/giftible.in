@@ -9,7 +9,7 @@ export const loginUser = async (contactNumber, password) => {
     formData.append("password", password);
 
     // ✅ Corrected API endpoint for login
-    const { data } = await axiosInstance.post(`/token`, formData, {
+    const { data } = await axiosInstance.post(`${API_BASE_URL}/token`, formData, {
       headers: { "Content-Type": "application/x-www-form-urlencoded" },
     });
 
